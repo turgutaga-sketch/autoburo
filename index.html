@@ -142,6 +142,7 @@ input,select,textarea{font-family:inherit;font-size:16px}
 .hidden{display:none}
 @media(prefers-reduced-motion:reduce){.modal,.toast{animation:none}.qa{transition:none}}
 </style>
+<script src="config.js"></script>
 <script>/* jsPDF 2.5.1 MIT */
 /** @license
  *
@@ -711,7 +712,7 @@ customers:[],vehicles:[],incomes:[],expenses:[],docs:[],appointments:[],debts:[]
 let S;
 function load(){try{S=JSON.parse(localStorage.getItem(LSK))||defState();}catch(e){S=defState();}
  const d=defState();for(const k in d){if(S[k]===undefined)S[k]=d[k];}for(const k in d.settings){if(S.settings[k]===undefined)S.settings[k]=d.settings[k];}}
-function save(){try{localStorage.setItem(LSK,JSON.stringify(S));}catch(e){alert('⚠ Speicher voll! Bitte Backup machen und alte Fotos/Dokumente löschen. / Hafıza doldu! Yedek al, eski fotoğrafları sil.');}if(window.cloudPush)cloudPush();}
+function save(){try{localStorage.setItem(LSK,JSON.stringify(S));}catch(e){alert('⚠ Speicher voll! Bitte Backup machen und alte Fotos/Dokumente löschen. / Hafıza doldu! Yedek al, eski fotoğrafları sil.');}if(window.cloudPush)cloudPush();if(window.tenantPush)tenantPush();}
 const uid=()=>Date.now().toString(36)+Math.random().toString(36).slice(2,7);
 const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const eur=n=>(Number(n)||0).toLocaleString('de-DE',{minimumFractionDigits:2,maximumFractionDigits:2})+' €';
@@ -2024,7 +2025,7 @@ function sRender(id){render();const e=document.getElementById(id);if(e){e.focus(
 /* Girişte: önce kullanıcı hazır, sonra kilit */
 (async()=>{
  if(!S.settings.users.length){const h=await sha('1234');S.settings.users.push({id:uid(),name:'Chef',role:'chef',pinHash:h});save();}
- if(!AUTH){showLock();}
+ if(!AUTH){ if(typeof accActive==='function'&&accActive()&&!ACC){showAcc();} else {showLock();} }
  else{if(!allowPage(PAGE))PAGE=defaultPage();render();}
 })();
 render();
@@ -5106,5 +5107,230 @@ try{
  }
 }catch(e){}
 </script>
+<style>
+/* ---- Konto: Registrieren / Anmelden ---- */
+#acc{position:fixed;inset:0;z-index:900;background:linear-gradient(150deg,#0f172a,#1e293b);display:flex;align-items:center;justify-content:center;padding:22px;overflow-y:auto}
+#acc .ac{width:100%;max-width:390px;color:#fff;text-align:center}
+#acc .ac-logo{width:74px;height:74px;border-radius:20px;background:#C9A227;color:#1F2A4D;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:29px;margin:0 auto 14px;box-shadow:0 8px 24px rgba(0,0,0,.35)}
+#acc h2{font-size:25px;font-weight:800;margin-bottom:5px}
+#acc .ac-sub{color:#C9A227;font-size:12px;letter-spacing:1.5px;text-transform:uppercase;margin-bottom:24px}
+#acc .ac-tabs{display:flex;gap:6px;background:rgba(255,255,255,.07);border-radius:13px;padding:4px;margin-bottom:20px}
+#acc .ac-tabs button{flex:1;border:none;background:transparent;color:#cbd5e1;border-radius:10px;padding:11px;font-size:14.5px;font-weight:700}
+#acc .ac-tabs button.on{background:#fff;color:#0f172a}
+#acc input{width:100%;border:1px solid rgba(255,255,255,.2);border-radius:13px;padding:14px;background:rgba(255,255,255,.06);color:#fff;font-size:16px;margin-bottom:11px}
+#acc input::placeholder{color:#7f8ea8}
+#acc .ac-go{width:100%;border:none;border-radius:13px;padding:15px;background:#C9A227;color:#1F2A4D;font-size:16px;font-weight:800;margin-top:5px}
+#acc .ac-go:disabled{opacity:.55}
+#acc .ac-msg{min-height:22px;font-size:14px;margin-top:12px;color:#fca5a5;line-height:1.45}
+#acc .ac-msg.ok{color:#86efac}
+#acc .ac-link{background:none;border:none;color:#93a4c4;font-size:13.5px;margin-top:14px;text-decoration:underline}
+#acc .ac-note{color:#7f8ea8;font-size:12px;margin-top:20px;line-height:1.5}
+</style>
+<script>
+/* ============================================================
+   AutoBüro · Mehrmandanten-Konto (Supabase Auth)
+   Aktiv nur, wenn config.js vorhanden ist. Sonst bleibt alles wie bisher.
+   ============================================================ */
+const CFG = window.AUTOBURO_CONFIG || null;
+let ACC = null;            /* {token, refresh, email, uid, tenantId} */
+try{ ACC = JSON.parse(localStorage.getItem('ab_acc')); }catch(e){}
+
+function accSave(){ ACC ? localStorage.setItem('ab_acc',JSON.stringify(ACC)) : localStorage.removeItem('ab_acc'); }
+function accActive(){
+ return !!(CFG && CFG.supabaseUrl && CFG.supabaseKey
+   && /^https:\/\/.+\.supabase\./.test(CFG.supabaseUrl)
+   && CFG.supabaseKey.length>20);
+}
+
+async function sbAuth(path, body){
+ const r = await fetch(CFG.supabaseUrl.replace(/\/$/,'')+'/auth/v1/'+path, {
+  method:'POST',
+  headers:{'apikey':CFG.supabaseKey,'Content-Type':'application/json'},
+  body:JSON.stringify(body)
+ });
+ const j = await r.json().catch(()=>({}));
+ if(!r.ok) throw new Error(j.error_description || j.msg || j.message || ('HTTP '+r.status));
+ return j;
+}
+async function sbData(path, opts){
+ const o = opts||{};
+ const r = await fetch(CFG.supabaseUrl.replace(/\/$/,'')+'/rest/v1/'+path, {
+  ...o,
+  headers:{'apikey':CFG.supabaseKey,'Authorization':'Bearer '+(ACC&&ACC.token),
+           'Content-Type':'application/json','Prefer':'return=representation',...(o.headers||{})}
+ });
+ if(r.status===401){ await accRefresh(); throw new Error('session'); }
+ if(!r.ok){ const tx=await r.text(); throw new Error('HTTP '+r.status+' '+tx.slice(0,120)); }
+ return r.status===204 ? null : r.json();
+}
+async function accRefresh(){
+ if(!ACC||!ACC.refresh) return false;
+ try{
+  const j = await sbAuth('token?grant_type=refresh_token',{refresh_token:ACC.refresh});
+  ACC.token=j.access_token; ACC.refresh=j.refresh_token; accSave(); return true;
+ }catch(e){ ACC=null; accSave(); return false; }
+}
+
+/* ---------- Anmelde-Bildschirm ---------- */
+let ACC_TAB='login';
+function showAcc(){
+ document.getElementById('acc')?.remove();
+ const d=document.createElement('div'); d.id='acc';
+ d.innerHTML=`<div class="ac">
+  <div class="ac-logo">AB</div>
+  <h2>AutoBüro</h2>
+  <div class="ac-sub">Werkstatt-Verwaltung</div>
+  <div class="ac-tabs">
+   <button class="${ACC_TAB==='login'?'on':''}" onclick="accTab('login')">Anmelden</button>
+   <button class="${ACC_TAB==='reg'?'on':''}" onclick="accTab('reg')">Neu registrieren</button>
+  </div>
+  <input id="ac_m" type="email" inputmode="email" autocomplete="email" placeholder="E-Mail">
+  <input id="ac_p" type="password" autocomplete="current-password" placeholder="Passwort (min. 8 Zeichen)"
+         onkeydown="if(event.key==='Enter')accGo()">
+  <button class="ac-go" id="ac_b" onclick="accGo()">${ACC_TAB==='login'?'Anmelden':'Kostenlos starten'}</button>
+  <div class="ac-msg" id="ac_msg"></div>
+  <button class="ac-link" onclick="accReset()">Passwort vergessen?</button>
+  <div class="ac-note">${ACC_TAB==='reg'
+    ? '14 Tage kostenlos testen. Deine Daten liegen auf Servern in der EU und sind nur für dich sichtbar.'
+    : 'Deine Werkstattdaten werden automatisch geladen.'}</div>
+ </div>`;
+ document.body.appendChild(d);
+ setTimeout(()=>document.getElementById('ac_m')?.focus(),150);
+}
+function accTab(x){ ACC_TAB=x; showAcc(); }
+function accMsg(txt,ok){ const e=document.getElementById('ac_msg'); if(e){e.textContent=txt; e.className='ac-msg'+(ok?' ok':'');} }
+
+async function accGo(){
+ const m=(document.getElementById('ac_m').value||'').trim();
+ const p=document.getElementById('ac_p').value||'';
+ if(!m||!p){ accMsg('Bitte E-Mail und Passwort eingeben.'); return; }
+ if(ACC_TAB==='reg' && p.length<8){ accMsg('Passwort muss mindestens 8 Zeichen haben.'); return; }
+ const btn=document.getElementById('ac_b'); btn.disabled=true; accMsg('Bitte warten…');
+ try{
+  const j = ACC_TAB==='reg'
+   ? await sbAuth('signup',{email:m,password:p})
+   : await sbAuth('token?grant_type=password',{email:m,password:p});
+
+  if(!j.access_token){
+   accMsg('Fast fertig: Bitte bestätige zuerst die E-Mail, die wir dir geschickt haben.',true);
+   btn.disabled=false; return;
+  }
+  ACC={token:j.access_token, refresh:j.refresh_token, email:m, uid:(j.user&&j.user.id)||'', tenantId:null};
+  accSave();
+  await tenantOpen();
+  document.getElementById('acc')?.remove();
+  showLock();
+ }catch(e){
+  const msg=(e.message||'').toLowerCase();
+  accMsg(msg.includes('invalid')||msg.includes('credential') ? 'E-Mail oder Passwort stimmt nicht.'
+       : msg.includes('registered')||msg.includes('exists') ? 'Diese E-Mail ist schon registriert – bitte anmelden.'
+       : 'Fehler: '+e.message);
+  btn.disabled=false;
+ }
+}
+async function accReset(){
+ const m=(document.getElementById('ac_m').value||'').trim();
+ if(!m){ accMsg('Bitte zuerst deine E-Mail eintragen.'); return; }
+ try{ await sbAuth('recover',{email:m}); accMsg('Wir haben dir eine E-Mail zum Zurücksetzen geschickt.',true); }
+ catch(e){ accMsg('Fehler: '+e.message); }
+}
+function accLogout(){
+ if(!confirm('Abmelden? Die Daten dieses Geräts bleiben gespeichert.')) return;
+ ACC=null; accSave(); location.reload();
+}
+
+/* ---------- Werkstatt laden / anlegen ---------- */
+async function tenantOpen(){
+ let rows = await sbData('tenants?select=id,data,updated_at&limit=1',{method:'GET'});
+ if(!rows || !rows.length){
+  rows = await sbData('tenants',{method:'POST',body:JSON.stringify([{owner_id:ACC.uid,data:null,device:accDevice()}])});
+  const id=rows[0].id;
+  await sbData('tenant_meta',{method:'POST',body:JSON.stringify([{
+    tenant_id:id, owner_email:ACC.email, workshop_name:(S.settings&&S.settings.name)||'', plan:'trial',
+    last_login:new Date().toISOString(), login_count:1
+  }])}).catch(()=>{});
+  ACC.tenantId=id; accSave();
+  await tenantPush(true);                     /* erstes Mal: lokalen Stand hochladen */
+  return;
+ }
+ ACC.tenantId=rows[0].id; accSave();
+ const remote=rows[0];
+ if(remote.data && remote.data.settings){
+  const rc=countOf(remote.data), lc=countOf(S);
+  const localT=localStorage.getItem('ab_pull')||'';
+  /* Schutz: vollen Cloud-Stand nie durch leeres Gerät ersetzen */
+  if(remote.updated_at>localT || lc===0){
+   if(lc>0 && rc===0){ /* Cloud leer, Gerät voll → hochladen statt überschreiben */ }
+   else{
+    S=remote.data; const d=defState();
+    for(const k in d){ if(S[k]===undefined) S[k]=d[k]; }
+    for(const k in d.settings){ if(S.settings[k]===undefined) S.settings[k]=d.settings[k]; }
+    localStorage.setItem(LSK,JSON.stringify(S));
+    localStorage.setItem('ab_pull',remote.updated_at);
+   }
+  }
+ }
+ await sbData('tenant_meta?tenant_id=eq.'+ACC.tenantId,{method:'PATCH',body:JSON.stringify({
+   last_login:new Date().toISOString(), owner_email:ACC.email
+ })}).catch(()=>{});
+}
+function countOf(st){
+ if(!st) return 0;
+ return (st.docs||[]).length+(st.customers||[]).length+(st.income||[]).length+(st.expenses||[]).length;
+}
+function accDevice(){
+ let d=localStorage.getItem('ab_dev');
+ if(!d){ d='dev-'+Math.random().toString(36).slice(2,7); localStorage.setItem('ab_dev',d); }
+ return d;
+}
+
+/* Start: ohne Konto zuerst den Anmelde-Bildschirm zeigen */
+if(accActive() && !AUTH){
+ if(!ACC){ document.getElementById('lock')?.remove(); showAcc(); }
+ else{ tenantOpen().then(()=>{ if(PAGE)render(); }).catch(()=>{}); }
+}
+
+/* ---------- Speichern in die Cloud (mit Sicherheitsnetz) ---------- */
+let tPushTimer=null, tPushBusy=false;
+function tenantPush(now){
+ if(!accActive()||!ACC||!ACC.tenantId) return;
+ clearTimeout(tPushTimer);
+ if(now) return doTenantPush();
+ tPushTimer=setTimeout(doTenantPush,1500);
+}
+async function doTenantPush(){
+ if(!ACC||!ACC.tenantId||tPushBusy) return;
+ const local=countOf(S);
+ tPushBusy=true;
+ try{
+  /* 1) Fremden neueren Stand nicht blind überschreiben */
+  const cur=await sbData('tenants?select=data,updated_at&id=eq.'+ACC.tenantId,{method:'GET'});
+  if(cur&&cur.length){
+   const rc=countOf(cur[0].data);
+   if(local===0 && rc>0){ tPushBusy=false; return; }        /* leeres Gerät darf nie löschen */
+  }
+  const stamp=new Date().toISOString();
+  const snap=JSON.parse(JSON.stringify(S));
+  /* 2) Historie: alter Stand bleibt für immer erhalten */
+  await sbData('tenant_versions',{method:'POST',body:JSON.stringify([{
+    tenant_id:ACC.tenantId, data:snap, device:accDevice()
+  }])}).catch(()=>{});
+  /* 3) Aktuellen Stand schreiben */
+  await sbData('tenants?id=eq.'+ACC.tenantId,{method:'PATCH',body:JSON.stringify({
+    data:snap, updated_at:stamp, device:accDevice()
+  })});
+  localStorage.setItem('ab_pull',stamp);
+  /* 4) Kennzahlen (ohne Kundendaten) */
+  await sbData('tenant_meta?tenant_id=eq.'+ACC.tenantId,{method:'PATCH',body:JSON.stringify({
+    workshop_name:(S.settings&&S.settings.name)||'',
+    doc_count:(S.docs||[]).length, customer_count:(S.customers||[]).length
+  })}).catch(()=>{});
+ }catch(e){
+  if((e.message||'')==='session'){ if(await accRefresh()) { tPushBusy=false; return doTenantPush(); } }
+ }
+ tPushBusy=false;
+}
+</script>
+
 </body>
 </html>
