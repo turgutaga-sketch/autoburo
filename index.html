@@ -1021,10 +1021,12 @@ function vRech(){
   ${[['',t('alle')],['offen',t('offen')],['ueber',t('ueberfaellig')],['bezahlt',t('bezahlt')]].map(([v,l])=>`<button class="pill ${rechSt===v?'blue':''}" onclick="rechSt='${v}';render()">${l}</button>`).join('')}
  </div>
  <div class="toolbar"><input type="text" id="q_rech" class="pill" style="flex:1;min-width:160px" placeholder="${t('suchen')}" value="${esc(rechQ)}" oninput="rechQ=this.value;sRender('q_rech')">
- <select class="pill" onchange="rechTyp=this.value;render()"><option value="">${t('alleTypen')}</option><option value="RE" ${rechTyp==='RE'?'selected':''}>${t('rechnung')}</option><option value="AN" ${rechTyp==='AN'?'selected':''}>${t('angebot')}</option><option value="AU" ${rechTyp==='AU'?'selected':''}>${t('auftrag')}</option><option value="GS" ${rechTyp==='GS'?'selected':''}>${t('gutschrift')}</option></select>
+ <select class="pill" onchange="rechTyp=this.value;render()"><option value="">${t('alleTypen')}</option><option value="RE" ${rechTyp==='RE'?'selected':''}>${t('rechnung')}</option><option value="AN" ${rechTyp==='AN'?'selected':''}>${t('angebot')}</option><option value="AU" ${rechTyp==='AU'?'selected':''}>${t('auftrag')}</option><option value="GS" ${rechTyp==='GS'?'selected':''}>${t('gutschrift')}</option><option value="MA" ${rechTyp==='MA'?'selected':''}>Mahnung</option><option value="FA" ${rechTyp==='FA'?'selected':''}>Fahrzeugannahme</option><option value="UP" ${rechTyp==='UP'?'selected':''}>Übergabeprotokoll</option></select>
   <span class="sp"></span>
   <button class="abtn white" onclick="xlsExport('rechnungen')">Excel</button>
-  <button class="abtn blue" style="background:#0f172a" onclick="editDoc()">＋ ${t('neuErstellen')}</button></div>
+  <button class="abtn blue" style="background:#0f172a" onclick="editDoc()">＋ ${t('neuErstellen')}</button>
+  ${window.neuProtokoll?`<button class="abtn white" onclick="neuProtokoll('FA')" title="Fahrzeugannahme-Protokoll">🚗 Annahme</button>
+  <button class="abtn white" onclick="neuProtokoll('UP')" title="Übergabeprotokoll">🔑 Übergabe</button>`:''}</div>
  <div class="listcard">${list.length?list.map(d=>docRow(d,false)).join(''):`<div class="lcempty">${t('keineDaten')}</div>`}</div>
  ${totalR>200?`<p style="font-size:13px;color:var(--orange);padding:0 4px">⚠ 200 / ${totalR} — ${t('capHint')}</p>`:''}`;
 }
@@ -1044,6 +1046,8 @@ function docRow(d,arch){
     ${window.isOverdue&&isOverdue(d)?`<button class="sbtn" style="color:var(--red);border-color:#f5c6cf" onclick="mahnPDF('${d.id}')">${t('mahnung')}</button>`:''}
     ${d.type==='RE'&&d.status!=='bezahlt'?`<button class="sbtn" style="color:var(--green);border-color:#bbe7cd" onclick="payDoc('${d.id}')">€✓</button>`:''}
     ${(d.type==='AN'||d.type==='AU')?`<button class="sbtn" onclick="convDoc('${d.id}')">→RE</button>`:''}
+    ${d.type==='RE'&&d.status!=='bezahlt'&&window.mahnungVon?`<button class="sbtn" style="color:#B42318;border-color:#f3c6c2" onclick="mahnungVon('${d.id}')" title="Mahnung erstellen">⚠ Mahnung</button>`:''}
+    ${(d.type==='FA'||d.type==='UP')&&window.protokollForm?`<button class="sbtn" onclick="protokollForm('${d.id}')">✎</button>`:''}
     <button class="sbtn" onclick="toggleArch('${d.id}',true)">🗄</button>`}
   <button class="sbtn red" onclick="delItem('docs','${d.id}')">🗑</button></div></div>`;
 }
@@ -1293,7 +1297,15 @@ body{font-family:'Helvetica Neue',Helvetica,Arial,sans-serif;color:#1c2333;font-
 .vsum td,.vsum th{padding:3px 8px;border-bottom:.5px solid #dde2ee;text-align:right}
 .vsum th{font-weight:700;color:#1F2A4D;text-transform:uppercase;letter-spacing:.8px;font-size:8.5px}
 .dinfo{font-size:10px;color:#68718a;margin-top:4px}`;
-function dHead(title,no,dateIso,extra){const s=S.settings;return`<div class="dhead"><div><div class="dlogo">NEUE WELT <span>AUTO SERVICE</span></div></div>
+function dLogo(){
+ const n=(S.settings.name||'').trim();
+ if(!n) return '<span style="color:#94a3b8">— Firmenname in den Einstellungen eintragen —</span>';
+ const w=n.split(/\s+/);
+ if(w.length<2) return esc(n);
+ const half=Math.ceil(w.length/2);
+ return esc(w.slice(0,half).join(' '))+' <span>'+esc(w.slice(half).join(' '))+'</span>';
+}
+function dHead(title,no,dateIso,extra){const s=S.settings;return`<div class="dhead"><div><div class="dlogo">${dLogo()}</div></div>
  <div class="dmeta"><div class="dtitle">${title}</div><table>${no?`<tr><td>Nr.:</td><td><b>${esc(no)}</b></td></tr>`:''}<tr><td>Datum:</td><td>${fmtD(dateIso||todayISO())}</td></tr>${extra||''}</table></div></div>
  <div class="goldline"></div><div class="dsender">${esc(s.name)} · ${esc(s.street)} · ${esc(s.city)}</div>`;}
 function dFoot(doc){const s=S.settings;
@@ -1798,9 +1810,9 @@ Object.assign(I18N.es,{kopie:'Duplicar',kopiert:'Copia creada ✓'});
 
 function nextNo(ty){const y=new Date().getFullYear();
  const mx=S.docs.filter(d=>d.type===ty&&d.no&&d.no.indexOf('-'+y+'-')>0).reduce((a,d)=>Math.max(a,parseInt(d.no.split('-').pop())||0),0);
- const c=ty==='RE'?S.settings.nextRE:ty==='AN'?S.settings.nextAN:ty==='GS'?S.settings.nextGS:S.settings.nextAU;
+ const c=ty==='RE'?S.settings.nextRE:ty==='AN'?S.settings.nextAN:ty==='GS'?S.settings.nextGS:(ty==='MA'||ty==='FA'||ty==='UP')?(mx+1):S.settings.nextAU;
  const n=Math.max(mx+1,c||1);
- if(ty==='RE')S.settings.nextRE=n+1;else if(ty==='AN')S.settings.nextAN=n+1;else if(ty==='GS')S.settings.nextGS=n+1;else S.settings.nextAU=n+1;
+ if(ty==='RE')S.settings.nextRE=n+1;else if(ty==='AN')S.settings.nextAN=n+1;else if(ty==='GS')S.settings.nextGS=n+1;else if(ty==='MA'||ty==='FA'||ty==='UP'){}else S.settings.nextAU=n+1;
  return ty+'-'+y+'-'+String(n).padStart(4,'0');}
 const hasRabatt=d=>docDisc(d)>0||(d.pos||[]).some(p=>num(p.qty)*num(p.price)<0);
 const addDaysISO=(iso,n)=>{const d=new Date(iso+'T12:00:00');d.setDate(d.getDate()+n);return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');};
@@ -1951,13 +1963,15 @@ function pinPress(n){
 }
 function pinDel(){PIN_BUF=PIN_BUF.slice(0,-1);pinDots();}
 async function doLogin(){
+ if(!document.getElementById('lock'))return;          /* schon angemeldet */
  const uidv=(document.getElementById('lk_u')||{}).value,pin=PIN_BUF;
+ const err=m=>{const e=document.getElementById('lk_e');if(e)e.textContent=m;PIN_BUF='';pinDots();};
  const u=(S.settings.users||[]).find(x=>x.id===uidv);
- if(!u){document.getElementById('lk_e').textContent=t('falschPin');PIN_BUF='';pinDots();return;}
+ if(!u){err(t('falschPin'));return;}
  const h=await sha(pin);
- if(h!==u.pinHash){document.getElementById('lk_e').textContent=t('falschPin');PIN_BUF='';pinDots();return;}
+ if(h!==u.pinHash){err(t('falschPin'));return;}
  AUTH={uid:u.id,name:u.name,role:u.role};sessionStorage.setItem('nb_auth',JSON.stringify(AUTH));
- document.getElementById('lock').remove();go(defaultPage());
+ document.getElementById('lock')?.remove();go(defaultPage());
 }
 /* Tastatur-Eingabe auch möglich */
 document.addEventListener('keydown',e=>{
@@ -5132,7 +5146,7 @@ try{
    Aktiv nur, wenn config.js vorhanden ist. Sonst bleibt alles wie bisher.
    ============================================================ */
 const CFG = window.AUTOBURO_CONFIG || null;
-let ACC = null;            /* {token, refresh, email, uid, tenantId} */
+let ACC = null, NEEDS_SETUP=false;   /* {token, refresh, email, uid, tenantId} */
 try{ ACC = JSON.parse(localStorage.getItem('ab_acc')); }catch(e){}
 
 function accSave(){ ACC ? localStorage.setItem('ab_acc',JSON.stringify(ACC)) : localStorage.removeItem('ab_acc'); }
@@ -5220,6 +5234,9 @@ async function accGo(){
   await tenantOpen();
   document.getElementById('acc')?.remove();
   showLock();
+  if(NEEDS_SETUP){
+   setTimeout(()=>{ alert('Willkommen bei AutoBüro!\n\nBitte trage zuerst deine Firmendaten ein:\nEinstellungen → Firma & Bank\n\n(Name, Adresse, Steuernummer, IBAN)\nDiese Angaben erscheinen auf jeder Rechnung.'); },900);
+  }
  }catch(e){
   const msg=(e.message||'').toLowerCase();
   accMsg(msg.includes('invalid')||msg.includes('credential') ? 'E-Mail oder Passwort stimmt nicht.'
@@ -5243,6 +5260,15 @@ function accLogout(){
 async function tenantOpen(){
  let rows = await sbData('tenants?select=id,data,updated_at&limit=1',{method:'GET'});
  if(!rows || !rows.length){
+  /* Neue Werkstatt: NIEMALS mit fremden Firmendaten starten */
+  S=defState();
+  S.settings.name=''; S.settings.short=''; S.settings.owner='';
+  S.settings.street=''; S.settings.city=''; S.settings.phone=''; S.settings.email='';
+  S.settings.taxNo=''; S.settings.vatId='';
+  S.settings.bankName=''; S.settings.iban=''; S.settings.bic=''; S.settings.accHolder='';
+  S.customers=[];S.vehicles=[];S.incomes=[];S.expenses=[];S.docs=[];
+  S.appointments=[];S.debts=[];S.files=[];S.parts=[];S.suppliers=[];
+  localStorage.setItem(LSK,JSON.stringify(S));
   rows = await sbData('tenants',{method:'POST',body:JSON.stringify([{owner_id:ACC.uid,data:null,device:accDevice()}])});
   const id=rows[0].id;
   await sbData('tenant_meta',{method:'POST',body:JSON.stringify([{
@@ -5251,6 +5277,7 @@ async function tenantOpen(){
   }])}).catch(()=>{});
   ACC.tenantId=id; accSave();
   await tenantPush(true);                     /* erstes Mal: lokalen Stand hochladen */
+  NEEDS_SETUP=true;
   return;
  }
  ACC.tenantId=rows[0].id; accSave();
@@ -5329,6 +5356,218 @@ async function doTenantPush(){
   if((e.message||'')==='session'){ if(await accRefresh()) { tPushBusy=false; return doTenantPush(); } }
  }
  tPushBusy=false;
+}
+</script>
+
+<style>
+/* ---- Protokoll-Dokumente ---- */
+.dprot{margin:14px 0}
+.dprot h4{font-size:11px;letter-spacing:1.4px;text-transform:uppercase;color:#C9A227;font-weight:800;margin:0 0 7px;padding-bottom:5px;border-bottom:1px solid #e3e1dc}
+.dgrid2{display:grid;grid-template-columns:1fr 1fr;gap:8px 22px;font-size:11.5px}
+.dgrid2 div{padding:5px 0;border-bottom:1px dotted #ddd}
+.dgrid2 b{color:#1F2A4D}
+.dchk{display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px 16px;font-size:11.5px;margin-top:4px}
+.dchk span{display:flex;align-items:center;gap:6px}
+.dchk i{width:11px;height:11px;border:1.4px solid #1F2A4D;border-radius:2px;display:inline-block;flex:0 0 11px;font-style:normal}
+.dbox{border:1px solid #ddd;border-radius:5px;min-height:58px;padding:8px;font-size:11.5px;line-height:1.5;white-space:pre-wrap}
+.dwarn{background:#FEF3F2;border-left:3px solid #B42318;padding:9px 12px;font-size:12px;color:#7A271A;margin:12px 0;line-height:1.55}
+.dfuel{display:flex;gap:5px;align-items:center;font-size:11.5px;margin-top:3px}
+.dfuel u{text-decoration:none;border:1.4px solid #1F2A4D;width:26px;height:15px;display:inline-block;position:relative}
+.dfuel u.on{background:#1F2A4D}
+</style>
+<script>
+/* ============================================================
+   Weitere Vorlagen: Mahnung · Fahrzeugannahme · Übergabeprotokoll
+   Additiv — bestehende Typen RE/AN/AU/GS bleiben unverändert.
+   ============================================================ */
+const DOC_TITLES_X = {MA:'MAHNUNG', FA:'FAHRZEUGANNAHME', UP:'ÜBERGABEPROTOKOLL'};
+const MAHN_TEXT = {
+ 1:{t:'Zahlungserinnerung',
+    b:'sicher haben Sie es nur übersehen: Die unten genannte Rechnung ist noch offen. Bitte begleichen Sie den Betrag bis zum angegebenen Datum. Sollten Sie die Zahlung bereits veranlasst haben, betrachten Sie dieses Schreiben als gegenstandslos.'},
+ 2:{t:'2. Mahnung',
+    b:'trotz unserer Zahlungserinnerung konnten wir bisher keinen Zahlungseingang feststellen. Wir bitten Sie, den offenen Betrag bis zum genannten Datum auszugleichen.'},
+ 3:{t:'Letzte Mahnung',
+    b:'trotz mehrfacher Aufforderung ist der Betrag weiterhin offen. Wir fordern Sie letztmalig auf, bis zum genannten Datum zu zahlen. Nach Ablauf dieser Frist behalten wir uns weitere Schritte vor.'}
+};
+
+/* ---------- Mahnung aus einer Rechnung erzeugen ---------- */
+function mahnungVon(id){
+ const re=S.docs.find(x=>x.id===id);
+ if(!re||re.type!=='RE'){toast('Nur aus einer Rechnung möglich');return;}
+ const vorige=S.docs.filter(x=>x.type==='MA'&&x.origId===id).length;
+ const stufe=Math.min(3,vorige+1);
+ const geb=stufe===1?0:(stufe===2?5:10);
+ const d={
+  id:uid(), type:'MA', no:nextNo('MA'), date:todayISO(),
+  customerId:re.customerId||'', customerName:re.customerName||'', customerAddress:re.customerAddress||'',
+  vehiclePlate:re.vehiclePlate||'',
+  origId:re.id, origNo:re.no, origDate:re.date, origSum:docGross(re),
+  stufe, fee:geb, frist:addDaysISO(todayISO(),stufe===3?7:10),
+  pos:[], remark:''
+ };
+ S.docs.unshift(d); save();
+ toast(stufe+'. Mahnung erstellt: '+d.no);
+ render(); docPDF(d.id);
+}
+
+/* ---------- PDF: Mahnung ---------- */
+function buildMahnung(d){
+ const m=MAHN_TEXT[d.stufe]||MAHN_TEXT[1];
+ const ges=num(d.origSum)+num(d.fee);
+ const extra=`<tr><td>Rechnung:</td><td><b>${esc(d.origNo||'')}</b></td></tr>`+
+   (d.origDate?`<tr><td>vom:</td><td>${fmtD(d.origDate)}</td></tr>`:'')+
+   `<tr><td>Zahlbar bis:</td><td><b>${fmtD(d.frist)}</b></td></tr>`;
+ const adr=`<div class="dcard" style="margin:16px 0"><b>${esc(d.customerName||'')}</b><br>${esc(d.customerAddress||'').replace(/\n/g,'<br>')}</div>`;
+ const tab=`<table class="dtab"><thead><tr><th>Bezeichnung</th><th class="r">Betrag €</th></tr></thead><tbody>
+  <tr><td>Rechnung ${esc(d.origNo||'')}${d.origDate?' vom '+fmtD(d.origDate):''}</td><td class="r">${num(d.origSum).toLocaleString('de-DE',{minimumFractionDigits:2})}</td></tr>
+  ${num(d.fee)>0?`<tr><td>Mahngebühr (${d.stufe}. Mahnung)</td><td class="r">${num(d.fee).toLocaleString('de-DE',{minimumFractionDigits:2})}</td></tr>`:''}
+  </tbody></table>
+  <div class="dsum"><table><tr class="tot"><td>Offener Gesamtbetrag</td><td class="r">${eur(ges)}</td></tr></table></div>`;
+ const warn=d.stufe===3
+  ? `<div class="dwarn"><b>Letzte Frist:</b> Geht bis zum ${fmtD(d.frist)} keine Zahlung ein, geben wir den Vorgang ohne weitere Ankündigung ab. Dadurch entstehen Ihnen zusätzliche Kosten.</div>` : '';
+ return dHead(m.t.toUpperCase(), d.no, d.date, extra)+adr+
+  `<p style="font-size:12.5px;line-height:1.65;margin:14px 0 6px">Sehr geehrte Damen und Herren,</p>
+   <p style="font-size:12.5px;line-height:1.65;margin:0 0 14px">${m.b}</p>`+
+  tab+warn+
+  `<p style="font-size:12.5px;line-height:1.65;margin:14px 0">Bitte überweisen Sie den Betrag unter Angabe der Rechnungsnummer <b>${esc(d.origNo||'')}</b> auf das unten genannte Konto.</p>
+   <p style="font-size:12.5px;margin-top:16px">Mit freundlichen Grüßen<br><b>${esc(S.settings.name||'')}</b></p>`+
+  dFoot();
+}
+
+/* ---------- PDF: Fahrzeugannahme ---------- */
+function buildAnnahme(d){
+ const veh=S.vehicles.find(v=>v.plate&&d.vehiclePlate&&v.plate.replace(/\s/g,'')===d.vehiclePlate.replace(/\s/g,''));
+ const zub=['Warndreieck','Verbandkasten','Warnweste','Wagenheber','Radschlüssel','Reserverad','Bordbuch','2. Schlüssel','Navi-SD','Radio-Code'];
+ const fuel=num(d.fuel||0);
+ const bars=[0,1,2,3,4].map(i=>`<u class="${fuel>i?'on':''}"></u>`).join('');
+ return dHead('FAHRZEUGANNAHME', d.no, d.date)+
+ `<div class="dcards"><div class="dcard"><h4>Kunde</h4><b>${esc(d.customerName||'')}</b><br>${esc(d.customerAddress||'').replace(/\n/g,'<br>')}</div>
+  <div class="dcard"><h4>Fahrzeug</h4>Kennzeichen: <b>${esc(d.vehiclePlate||'')}</b>${veh?'<br>'+esc([veh.brand,veh.model].filter(Boolean).join(' ')):''}${veh&&veh.vin?'<br>FIN: '+esc(veh.vin):''}</div></div>
+
+  <div class="dprot"><h4>Zustand bei Annahme</h4>
+   <div class="dgrid2">
+    <div>Kilometerstand: <b>${esc(d.km||'')} km</b></div>
+    <div>Annahme am: <b>${fmtD(d.date)}</b>${d.time?' · '+esc(d.time):''}</div>
+   </div>
+   <div class="dfuel" style="margin-top:8px">Tankstand: ${bars} <span style="margin-left:6px">${['leer','¼','½','¾','voll'][Math.max(0,Math.min(4,fuel))]}</span></div>
+  </div>
+
+  <div class="dprot"><h4>Vorhandene Schäden / Auffälligkeiten</h4>
+   <div class="dbox">${esc(d.damage||'')||'&nbsp;'}</div>
+   <p style="font-size:10px;color:#68718a;margin-top:5px">Nicht aufgeführte Schäden gelten als bei Annahme nicht vorhanden.</p>
+  </div>
+
+  <div class="dprot"><h4>Mitgeführtes Zubehör</h4>
+   <div class="dchk">${zub.map(z=>`<span><i></i>${z}</span>`).join('')}</div>
+  </div>
+
+  <div class="dprot"><h4>Auftrag / Kundenangaben</h4>
+   <div class="dbox">${esc(d.remark||'')||'&nbsp;'}</div>
+  </div>
+
+  <div class="dwarn" style="background:#F8FAFC;border-left-color:#1F2A4D;color:#334155">
+   Der Kunde bestätigt die Richtigkeit der Angaben. Für im Fahrzeug zurückgelassene Wertgegenstände wird keine Haftung übernommen.
+   Eine Probefahrt zur Fehlersuche gilt als vereinbart.
+  </div>
+
+  <div class="dsign"><div><div class="line"></div>Datum, Unterschrift Kunde</div>
+   <div><div class="line"></div>Datum, Unterschrift Werkstatt</div></div>`+dFoot();
+}
+
+/* ---------- PDF: Übergabeprotokoll ---------- */
+function buildUebergabe(d){
+ const veh=S.vehicles.find(v=>v.plate&&d.vehiclePlate&&v.plate.replace(/\s/g,'')===d.vehiclePlate.replace(/\s/g,''));
+ return dHead('ÜBERGABEPROTOKOLL', d.no, d.date)+
+ `<div class="dcards"><div class="dcard"><h4>Kunde</h4><b>${esc(d.customerName||'')}</b><br>${esc(d.customerAddress||'').replace(/\n/g,'<br>')}</div>
+  <div class="dcard"><h4>Fahrzeug</h4>Kennzeichen: <b>${esc(d.vehiclePlate||'')}</b>${veh?'<br>'+esc([veh.brand,veh.model].filter(Boolean).join(' ')):''}</div></div>
+
+  <div class="dprot"><h4>Übergabe</h4>
+   <div class="dgrid2">
+    <div>Kilometerstand: <b>${esc(d.km||'')} km</b></div>
+    <div>Übergabe am: <b>${fmtD(d.date)}</b>${d.time?' · '+esc(d.time):''}</div>
+    ${d.origNo?`<div>Auftrag/Rechnung: <b>${esc(d.origNo)}</b></div>`:''}
+   </div>
+  </div>
+
+  <div class="dprot"><h4>Ausgeführte Arbeiten</h4>
+   <div class="dbox">${esc(d.remark||'')||'&nbsp;'}</div>
+  </div>
+
+  <div class="dprot"><h4>Hinweise für den Kunden</h4>
+   <div class="dchk" style="grid-template-columns:1fr 1fr">
+    <span><i></i>Radmuttern nach 50 km nachziehen</span>
+    <span><i></i>Bremsen einfahren (ca. 200 km)</span>
+    <span><i></i>Nächster Service bei ${esc(d.nextService||'________')} km</span>
+    <span><i></i>HU/AU fällig: ${esc(d.hu||'________')}</span>
+   </div>
+   ${d.hinweis?`<div class="dbox" style="margin-top:8px">${esc(d.hinweis)}</div>`:''}
+  </div>
+
+  <div class="dwarn" style="background:#F0FDF4;border-left-color:#16A34A;color:#14532D">
+   Der Kunde hat das Fahrzeug geprüft und in ordnungsgemäßem Zustand übernommen. Zubehör und Schlüssel wurden vollständig zurückgegeben.
+  </div>
+
+  <div class="dsign"><div><div class="line"></div>Datum, Unterschrift Kunde</div>
+   <div><div class="line"></div>Datum, Unterschrift Werkstatt</div></div>`+dFoot();
+}
+
+/* ---------- In die PDF-Ausgabe einhängen ---------- */
+(function(){
+ const orig = window.buildDocX;
+ window.buildDocX = function(d){
+  if(d && d.type==='MA') return buildMahnung(d);
+  if(d && d.type==='FA') return buildAnnahme(d);
+  if(d && d.type==='UP') return buildUebergabe(d);
+  return orig(d);
+ };
+})();
+
+/* ---------- Protokoll direkt aus einem Fahrzeug anlegen ---------- */
+function neuProtokoll(ty, plate, custId){
+ const c=S.customers.find(x=>x.id===custId);
+ const d={
+  id:uid(), type:ty, no:nextNo(ty), date:todayISO(),
+  time:new Date().toTimeString().slice(0,5),
+  customerId:custId||'', customerName:c?c.name:'', customerAddress:c?[c.street,c.city].filter(Boolean).join('\n'):'',
+  vehiclePlate:plate||'', km:'', fuel:2, damage:'', remark:'', pos:[]
+ };
+ S.docs.unshift(d); save(); render();
+ protokollForm(d.id);
+}
+
+/* ---------- Kleines Formular für FA / UP ---------- */
+function protokollForm(id){
+ const d=S.docs.find(x=>x.id===id); if(!d) return;
+ const isFA=d.type==='FA';
+ openModal(isFA?'Fahrzeugannahme':'Übergabeprotokoll',
+ `<div class="frow2">
+   <div class="fld"><label>Kunde</label><input id="p_cn" value="${esc(d.customerName||'')}"></div>
+   <div class="fld"><label>Kennzeichen</label><input id="p_pl" value="${esc(d.vehiclePlate||'')}"></div>
+  </div>
+  <div class="fld"><label>Adresse</label><textarea id="p_ca" rows="2">${esc(d.customerAddress||'')}</textarea></div>
+  <div class="frow2">
+   <div class="fld"><label>Kilometerstand</label><input id="p_km" inputmode="numeric" value="${esc(d.km||'')}" placeholder="z. B. 142000"></div>
+   ${isFA?`<div class="fld"><label>Tankstand</label><select id="p_fu">
+     ${['leer','¼','½','¾','voll'].map((x,i)=>`<option value="${i}" ${num(d.fuel)===i?'selected':''}>${x}</option>`).join('')}
+   </select></div>`:`<div class="fld"><label>Auftrag/Rechnung Nr.</label><input id="p_on" value="${esc(d.origNo||'')}" placeholder="RE-2026-…"></div>`}
+  </div>
+  ${isFA?`<div class="fld"><label>Vorhandene Schäden / Auffälligkeiten</label><textarea id="p_dm" rows="3" placeholder="Kratzer Tür links, Delle Heckklappe …">${esc(d.damage||'')}</textarea></div>`:''}
+  <div class="fld"><label>${isFA?'Auftrag / Kundenangaben':'Ausgeführte Arbeiten'}</label><textarea id="p_rm" rows="3">${esc(d.remark||'')}</textarea></div>
+  ${!isFA?`<div class="frow2">
+    <div class="fld"><label>Nächster Service bei (km)</label><input id="p_ns" value="${esc(d.nextService||'')}"></div>
+    <div class="fld"><label>HU/AU fällig</label><input id="p_hu" value="${esc(d.hu||'')}" placeholder="z. B. 03/2028"></div>
+   </div>`:''}`,
+ `<button class="btn" onclick="closeModal()">${t('abbrechen')}</button>
+  <button class="btn p" onclick="protokollSave('${id}')">${t('speichern')}</button>`);
+}
+function protokollSave(id){
+ const d=S.docs.find(x=>x.id===id); if(!d) return;
+ const v=x=>{const e=document.getElementById(x);return e?e.value.trim():'';};
+ d.customerName=v('p_cn'); d.customerAddress=v('p_ca'); d.vehiclePlate=v('p_pl'); d.km=v('p_km');
+ d.remark=v('p_rm');
+ if(d.type==='FA'){ d.fuel=num(v('p_fu')); d.damage=v('p_dm'); }
+ else { d.origNo=v('p_on'); d.nextService=v('p_ns'); d.hu=v('p_hu'); }
+ save(); closeModal(); render(); toast(t('gespeichert'));
 }
 </script>
 
