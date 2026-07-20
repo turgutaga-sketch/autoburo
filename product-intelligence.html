@@ -1,0 +1,84 @@
+<!doctype html>
+<html lang="de">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <meta name="robots" content="noindex,nofollow">
+  <title>WERK ONE · Product Intelligence</title>
+  <style>
+    :root{font-family:Inter,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;color:#111827;background:#f4f6f8}
+    *{box-sizing:border-box} body{margin:0;min-height:100vh} header{background:#111827;color:#fff;padding:20px 22px;position:sticky;top:0;z-index:5}
+    header h1{font-size:20px;margin:0 0 4px} header p{margin:0;color:#cbd5e1;font-size:13px}.wrap{max-width:1180px;margin:0 auto;padding:22px}
+    .notice,.card{background:#fff;border:1px solid #e5e7eb;border-radius:16px;box-shadow:0 8px 26px rgba(15,23,42,.05)}
+    .notice{padding:16px;margin-bottom:18px}.notice strong{display:block;margin-bottom:4px}.toolbar{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:18px}
+    button,select{border:1px solid #d1d5db;background:#fff;border-radius:10px;padding:10px 12px;font:inherit}button{cursor:pointer;font-weight:700}.primary{background:#111827;color:#fff;border-color:#111827}
+    .grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:14px;margin-bottom:18px}.card{padding:18px}.label{font-size:12px;color:#6b7280;text-transform:uppercase;letter-spacing:.06em}.value{font-size:30px;font-weight:800;margin-top:8px}.sub{font-size:12px;color:#6b7280;margin-top:4px}
+    .section{margin-top:18px}.section h2{font-size:17px;margin:0 0 12px}.table-wrap{overflow:auto;border-radius:16px;border:1px solid #e5e7eb;background:#fff}table{border-collapse:collapse;width:100%;min-width:740px}th,td{padding:12px 14px;border-bottom:1px solid #eef0f3;text-align:left;font-size:13px}th{background:#f8fafc;color:#475569;font-size:11px;text-transform:uppercase;letter-spacing:.05em}tr:last-child td{border-bottom:0}.status{padding:4px 8px;border-radius:999px;font-weight:700;font-size:11px;background:#ecfdf5;color:#047857}.error{background:#fef2f2;color:#b91c1c}.hidden{display:none!important}
+    @media(max-width:850px){.grid{grid-template-columns:repeat(2,minmax(0,1fr))}.wrap{padding:14px}}@media(max-width:520px){.grid{grid-template-columns:1fr}.value{font-size:26px}}
+  </style>
+</head>
+<body>
+<header><h1>WERK ONE · Product Intelligence</h1><p>Nur technische, anonymisierte Nutzungsdaten. Keine Kunden-, Fahrzeug-, Rechnungs- oder Bankdaten.</p></header>
+<main class="wrap">
+  <div id="authNotice" class="notice"><strong>Zugriff wird geprüft …</strong><span>Diese Seite ist ausschließlich für den Produktinhaber freigegeben.</span></div>
+  <section id="dashboard" class="hidden">
+    <div class="toolbar">
+      <label for="range">Zeitraum</label>
+      <select id="range"><option value="7">7 Tage</option><option value="30" selected>30 Tage</option><option value="90">90 Tage</option></select>
+      <button id="reload" class="primary">Aktualisieren</button>
+      <span id="updated" class="sub"></span>
+    </div>
+    <div class="grid">
+      <article class="card"><div class="label">Ereignisse</div><div id="events" class="value">–</div><div class="sub">Gesamte technische Aktionen</div></article>
+      <article class="card"><div class="label">Sitzungen</div><div id="sessions" class="value">–</div><div class="sub">Anonyme Nutzungssitzungen</div></article>
+      <article class="card"><div class="label">Aktive Module</div><div id="modules" class="value">–</div><div class="sub">Mindestens einmal genutzt</div></article>
+      <article class="card"><div class="label">Fehlerquote</div><div id="failureRate" class="value">–</div><div class="sub">Nur explizit fehlgeschlagene Aktionen</div></article>
+    </div>
+    <section class="section"><h2>Meistgenutzte Module</h2><div class="table-wrap"><table><thead><tr><th>Modul</th><th>Ereignisse</th><th>Sitzungen</th><th>Fehler</th><th>Ø Dauer</th></tr></thead><tbody id="moduleRows"></tbody></table></div></section>
+    <section class="section"><h2>Häufigste Aktionen</h2><div class="table-wrap"><table><thead><tr><th>Aktion</th><th>Modul</th><th>Anzahl</th><th>Gerät</th><th>Status</th></tr></thead><tbody id="eventRows"></tbody></table></div></section>
+  </section>
+</main>
+<script src="config.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script>
+(function(){
+  'use strict';
+  const cfg=window.WERKONE_CONFIG||window.AUTOBURO_CONFIG||{};
+  const notice=document.getElementById('authNotice');
+  const dashboard=document.getElementById('dashboard');
+  const owner='turgutaga@me.com';
+  if(!cfg.supabaseUrl||!cfg.supabaseKey||!window.supabase){notice.innerHTML='<strong>Konfiguration fehlt.</strong><span>Supabase-Verbindung konnte nicht geladen werden.</span>';return;}
+  const client=window.supabase.createClient(cfg.supabaseUrl,cfg.supabaseKey);
+  const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  const n=v=>new Intl.NumberFormat('de-DE').format(v||0);
+
+  async function verify(){
+    const {data:{session}}=await client.auth.getSession();
+    const email=(session?.user?.email||'').toLowerCase();
+    if(email!==owner){notice.innerHTML='<strong>Zugriff verweigert.</strong><span>Bitte zuerst mit dem freigegebenen Inhaber-Konto anmelden.</span>';return false;}
+    notice.classList.add('hidden');dashboard.classList.remove('hidden');return true;
+  }
+
+  async function load(){
+    const days=Number(document.getElementById('range').value||30);
+    const since=new Date(Date.now()-days*86400000).toISOString();
+    const {data,error}=await client.from('product_events').select('event_name,module_name,session_id,device_type,success,duration_ms,occurred_at').gte('occurred_at',since).order('occurred_at',{ascending:false}).limit(10000);
+    if(error){notice.classList.remove('hidden');notice.innerHTML='<strong>Daten konnten nicht geladen werden.</strong><span>'+esc(error.message)+'</span>';return;}
+    notice.classList.add('hidden');
+    const rows=data||[];const sessions=new Set(rows.map(r=>r.session_id));const modules=new Map();const events=new Map();let failures=0,known=0;
+    rows.forEach(r=>{
+      if(r.success!==null){known++;if(r.success===false)failures++;}
+      const m=modules.get(r.module_name)||{count:0,sessions:new Set(),failures:0,duration:0,durationCount:0};m.count++;m.sessions.add(r.session_id);if(r.success===false)m.failures++;if(Number.isFinite(r.duration_ms)){m.duration+=r.duration_ms;m.durationCount++;}modules.set(r.module_name,m);
+      const key=r.event_name+'|'+r.module_name+'|'+r.device_type;const e=events.get(key)||{event_name:r.event_name,module_name:r.module_name,device_type:r.device_type,count:0,failures:0};e.count++;if(r.success===false)e.failures++;events.set(key,e);
+    });
+    document.getElementById('events').textContent=n(rows.length);document.getElementById('sessions').textContent=n(sessions.size);document.getElementById('modules').textContent=n(modules.size);document.getElementById('failureRate').textContent=known?((failures/known)*100).toFixed(1)+' %':'0 %';
+    document.getElementById('moduleRows').innerHTML=[...modules.entries()].sort((a,b)=>b[1].count-a[1].count).slice(0,20).map(([name,m])=>'<tr><td><strong>'+esc(name)+'</strong></td><td>'+n(m.count)+'</td><td>'+n(m.sessions.size)+'</td><td>'+n(m.failures)+'</td><td>'+(m.durationCount?n(Math.round(m.duration/m.durationCount))+' ms':'–')+'</td></tr>').join('')||'<tr><td colspan="5">Noch keine Daten.</td></tr>';
+    document.getElementById('eventRows').innerHTML=[...events.values()].sort((a,b)=>b.count-a.count).slice(0,30).map(e=>'<tr><td><strong>'+esc(e.event_name)+'</strong></td><td>'+esc(e.module_name)+'</td><td>'+n(e.count)+'</td><td>'+esc(e.device_type)+'</td><td><span class="status '+(e.failures?'error':'')+'">'+(e.failures?n(e.failures)+' Fehler':'OK')+'</span></td></tr>').join('')||'<tr><td colspan="5">Noch keine Daten.</td></tr>';
+    document.getElementById('updated').textContent='Stand: '+new Date().toLocaleString('de-DE');
+  }
+  document.getElementById('reload').addEventListener('click',load);document.getElementById('range').addEventListener('change',load);
+  verify().then(ok=>{if(ok)load();});
+})();
+</script>
+</body>
+</html>
