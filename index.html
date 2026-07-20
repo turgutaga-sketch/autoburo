@@ -5571,5 +5571,67 @@ function protokollSave(id){
 }
 </script>
 
+<style>
+/* ---- Pflicht: Standard-PIN ändern ---- */
+#pinforce{position:fixed;inset:0;z-index:950;background:linear-gradient(150deg,#0f172a,#1e293b);display:flex;align-items:center;justify-content:center;padding:22px}
+#pinforce .pf{width:100%;max-width:360px;color:#fff;text-align:center}
+#pinforce .pf-ic{width:66px;height:66px;border-radius:18px;background:#C9A227;color:#1F2A4D;display:flex;align-items:center;justify-content:center;font-size:30px;margin:0 auto 16px}
+#pinforce h2{font-size:22px;font-weight:800;margin-bottom:8px}
+#pinforce p{color:#b6c2d9;font-size:14.5px;line-height:1.55;margin-bottom:22px}
+#pinforce input{width:100%;border:1px solid rgba(255,255,255,.2);border-radius:13px;padding:15px;background:rgba(255,255,255,.06);color:#fff;font-size:20px;text-align:center;letter-spacing:6px;margin-bottom:11px}
+#pinforce input::placeholder{letter-spacing:normal;font-size:15px;color:#7f8ea8}
+#pinforce .pf-go{width:100%;border:none;border-radius:13px;padding:15px;background:#C9A227;color:#1F2A4D;font-size:16px;font-weight:800}
+#pinforce .pf-msg{min-height:22px;font-size:14px;margin-top:10px;color:#fca5a5}
+</style>
+<script>
+/* ============================================================
+   Standard-PIN 1234 muss beim ersten Anmelden geändert werden
+   ============================================================ */
+function pinForceNeeded(){
+ if(!AUTH||!DEF_HASH) return false;
+ const u=(S.settings.users||[]).find(x=>x.id===AUTH.uid);
+ return !!(u && u.pinHash===DEF_HASH);
+}
+function showPinForce(){
+ document.getElementById('pinforce')?.remove();
+ const d=document.createElement('div'); d.id='pinforce';
+ d.innerHTML=`<div class="pf">
+  <div class="pf-ic">🔒</div>
+  <h2>Bitte eigene PIN vergeben</h2>
+  <p>Die Standard-PIN <b>1234</b> ist noch aktiv. Lege jetzt eine eigene PIN fest —
+     nur damit ist deine Werkstatt auf diesem Gerät geschützt.</p>
+  <input id="pf_1" type="password" inputmode="numeric" maxlength="8" placeholder="Neue PIN (4–8 Ziffern)" autocomplete="off">
+  <input id="pf_2" type="password" inputmode="numeric" maxlength="8" placeholder="PIN wiederholen" autocomplete="off"
+         onkeydown="if(event.key==='Enter')pinForceSave()">
+  <button class="pf-go" onclick="pinForceSave()">PIN speichern</button>
+  <div class="pf-msg" id="pf_msg"></div>
+ </div>`;
+ document.body.appendChild(d);
+ setTimeout(()=>document.getElementById('pf_1')?.focus(),150);
+}
+async function pinForceSave(){
+ const a=(document.getElementById('pf_1').value||'').trim();
+ const bb=(document.getElementById('pf_2').value||'').trim();
+ const msg=x=>{const e=document.getElementById('pf_msg');if(e)e.textContent=x;};
+ if(!/^\d{4,8}$/.test(a)){ msg('Bitte 4 bis 8 Ziffern eingeben.'); return; }
+ if(a!==bb){ msg('Die beiden Eingaben stimmen nicht überein.'); return; }
+ if(a==='1234'){ msg('Bitte eine andere PIN als 1234 wählen.'); return; }
+ const h=await sha(a);
+ const u=(S.settings.users||[]).find(x=>x.id===AUTH.uid);
+ if(u){ u.pinHash=h; save(); }
+ document.getElementById('pinforce')?.remove();
+ toast('PIN geändert ✓');
+}
+/* nach dem Anmelden prüfen */
+(function(){
+ const orig=window.go;
+ window.go=function(p){
+  const r=orig.apply(this,arguments);
+  if(pinForceNeeded() && !document.getElementById('pinforce')) setTimeout(showPinForce,250);
+  return r;
+ };
+})();
+</script>
+
 </body>
 </html>
