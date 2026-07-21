@@ -1120,9 +1120,11 @@ function vArchiv(){
  <div class="toolbar"><span class="sp"></span>
   <label class="abtn blue filebtn" style="background:var(--violet)">${t('hochladen')}<input type="file" accept="image/*,application/pdf,.pdf" onchange="uploadFile(this)"></label></div>
  <div class="listcard"><div class="lchead">${IC.upl}&nbsp;${t('dokumente')}</div>
-  ${S.files.length?S.files.map(f=>`<div class="lrow doclist">${f.mime&&f.mime.startsWith('image')?`<img src="${f.dataUrl}" alt="">`:`<div class="lic" style="background:var(--violet-bg);color:var(--violet)">${IC.doc}</div>`}
-   <div class="main"><b>${esc(f.name)}</b><span>${fmtD(f.date)}</span></div>
-   <div class="rowbtns"><a class="sbtn" href="${f.dataUrl}" download="${esc(f.name)}">⬇</a><button class="sbtn red" onclick="delItem('files','${f.id}')">🗑</button></div></div>`).join(''):`<div class="lcempty">${t('keineDaten')}</div>`}
+  ${window.katFilterBar?katFilterBar():''}
+  ${(()=>{const L=window.katFilter?S.files.filter(f=>!KATFILTER||f.kat===KATFILTER):S.files;
+   return L.length?L.map(f=>`<div class="lrow doclist">${f.mime&&f.mime.startsWith('image')?`<img src="${f.dataUrl}" alt="">`:`<div class="lic" style="background:var(--violet-bg);color:var(--violet)">${IC.doc}</div>`}
+   <div class="main"><b>${esc(f.name)}</b><span>${fmtD(f.date)} ${window.katBadge?katBadge(f):''}</span></div>
+   <div class="rowbtns">${window.katMenu?`<button class="sbtn" onclick="katMenu('files','${f.id}')" title="Kategorie">🏷</button>`:''}<a class="sbtn" href="${f.dataUrl}" download="${esc(f.name)}">⬇</a><button class="sbtn red" onclick="delItem('files','${f.id}')">🗑</button></div></div>`).join(''):`<div class="lcempty">${t('keineDaten')}</div>`;})()}
  </div>
  <div class="listcard"><div class="lchead">${IC.box}&nbsp;${t('archiv')} (${t('rechnungen')})</div>
   ${arch.length?arch.map(d=>docRow(d,true)).join(''):`<div class="lcempty">${t('keineDaten')}</div>`}
@@ -5870,6 +5872,196 @@ function vorlageTest(){
  const d=S.docs.find(x=>x.type==='RE')||S.docs[0];
  if(!d){ toast('Noch keine Rechnung vorhanden'); return; }
  docPDF(d.id);
+}
+</script>
+
+<style>
+/* ---- "Was soll daraus werden?" ---- */
+#kiwahl{position:fixed;inset:0;z-index:940;background:rgba(15,23,42,.62);display:flex;align-items:flex-end;justify-content:center;padding:0}
+#kiwahl .kw{width:100%;max-width:520px;background:var(--card);border-radius:20px 20px 0 0;padding:20px 18px 26px;max-height:88vh;overflow-y:auto}
+@media(min-width:640px){#kiwahl{align-items:center;padding:20px}#kiwahl .kw{border-radius:20px}}
+#kiwahl h3{font-size:18px;font-weight:800;margin-bottom:4px}
+#kiwahl .kw-sub{font-size:13.5px;color:var(--muted);margin-bottom:16px;line-height:1.45}
+#kiwahl .kw-opt{display:flex;align-items:center;gap:13px;width:100%;border:2px solid var(--line);background:var(--card);border-radius:14px;padding:13px 14px;margin-bottom:9px;text-align:left;cursor:pointer;transition:.15s}
+#kiwahl .kw-opt:hover{border-color:#94a3b8}
+#kiwahl .kw-opt.tipp{border-color:#0f172a;background:var(--blue-bg)}
+#kiwahl .kw-ic{width:40px;height:40px;border-radius:11px;background:var(--blue-bg);display:flex;align-items:center;justify-content:center;font-size:19px;flex:0 0 40px}
+#kiwahl .kw-tx{flex:1;min-width:0}
+#kiwahl .kw-tx b{display:block;font-size:15px;margin-bottom:2px}
+#kiwahl .kw-tx span{font-size:12.5px;color:var(--muted);display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+#kiwahl .kw-tag{font-size:10.5px;font-weight:700;color:#0f172a;background:#e2e8f0;border-radius:6px;padding:2px 7px;margin-left:6px}
+/* ---- Kategorien ---- */
+.katbar{display:flex;gap:6px;flex-wrap:wrap;margin:2px 0 4px}
+.kat{font-size:11px;font-weight:700;border-radius:7px;padding:2px 8px;border:1px solid transparent}
+.kat.fahrzeug{background:#EFF6FF;color:#1D4ED8;border-color:#BFDBFE}
+.kat.rechnung{background:#F0FDF4;color:#15803D;border-color:#BBF7D0}
+.kat.arbeit{background:#FEF3C7;color:#B45309;border-color:#FDE68A}
+.katpick{display:flex;gap:7px;flex-wrap:wrap;margin-top:5px}
+.katpick button{font-size:12.5px;font-weight:600;border:1.5px solid var(--line);background:var(--card);border-radius:9px;padding:6px 12px;cursor:pointer}
+.katpick button.on{border-color:#0f172a;background:var(--blue-bg)}
+</style>
+<script>
+/* ============================================================
+   Nach dem Scannen fragen: Kunde · Fahrzeug · Rechnung · Ausgabe
+   + Kategorien Fahrzeug / Rechnung / Arbeit
+   ============================================================ */
+const KATEGORIEN = {fahrzeug:'Fahrzeug', rechnung:'Rechnung', arbeit:'Arbeit'};
+let KIDATA = null;
+
+/* --- KI-Anweisung erweitern: auch Kunden-, Fahrzeug- und Ausgabedaten liefern --- */
+(function(){
+ if(typeof KI_PROMPT==='undefined') return;
+ window.KI_PROMPT_X = KI_PROMPT + `
+
+Zusaetzlich, wenn im Beleg erkennbar, ergaenze diese Felder im selben JSON:
+"art": "fahrzeugschein" | "eingangsrechnung" | "ausgangsrechnung" | "sonstiges",
+"kunde": {"name":"","address":"","phone":"","email":""},
+"fahrzeug": {"plate":"","brand":"","model":"","vin":"","hsn":"","tsn":"","ez":"","fuel":"","km":"","tuev":""},
+"ausgabe": {"desc":"","gross":0,"vatRate":19,"supplier":""}
+Fahrzeugschein-Felder: C.1.1/C.1.2 = Halter (kunde.name), C.1.3 = Adresse, A = plate, D.1 = brand, D.3 = model, E = vin, 2.1 = hsn, 2.2 = tsn, B = ez, P.3 = fuel.
+"ausgabe" nur bei einer Rechnung, die AN UNS gestellt ist (Lieferant/Teilehaendler) — gross ist der Bruttobetrag.
+Felder, die du nicht sicher erkennst, leer lassen. Nichts erfinden.`;
+})();
+
+/* --- kiRead umleiten: erst fragen, dann fuellen --- */
+(function(){
+ const orig=window.kiRead;
+ if(!orig) return;
+ window.kiRead=async function(){
+  const txt=(document.getElementById('kitext')||{value:''}).value.trim();
+  if(!KIFILE&&!txt){kiStatus(t('kiNoInput'));return;}
+  if(window.KIREC&&KIREC.stop)KIREC.stop();
+  kiStatus(t('kiWork'));
+  const content=[];
+  if(KIFILE)content.push({type:KIFILE.kind,source:{type:'base64',media_type:KIFILE.media,data:KIFILE.data}});
+  content.push({type:'text',text:(window.KI_PROMPT_X||KI_PROMPT)+(txt?'\n\nDiktierter Text: '+txt:'')});
+  try{
+   const r=await kiCall({model:'claude-sonnet-4-6',max_tokens:2000,messages:[{role:'user',content}]});
+   const data=await r.json();
+   if(data.error)throw new Error(data.error.message||JSON.stringify(data.error));
+   const tx=(data.content||[]).filter(b=>b.type==='text').map(b=>b.text).join('\n');
+   const clean=tx.replace(/```json|```/g,'').trim();
+   const j=JSON.parse(clean.slice(clean.indexOf('{'),clean.lastIndexOf('}')+1));
+   KIDATA=j; KIFILE=null;
+   kiStatus(t('kiDone'),1);
+   if(kiHatOptionen(j)) showKiWahl(j);   /* mehrere Möglichkeiten → fragen */
+   else kiFill(j);                       /* nur Belegdaten → wie bisher */
+  }catch(e){kiStatus(t('kiErr')+': '+e.message);}
+ };
+})();
+
+function kiHatOptionen(j){
+ const k=j.kunde&&(j.kunde.name||'').trim();
+ const f=j.fahrzeug&&(j.fahrzeug.plate||j.fahrzeug.vin||'').trim();
+ const a=j.ausgabe&&num(j.ausgabe.gross)>0;
+ return !!(k||f||a);
+}
+
+function showKiWahl(j){
+ document.getElementById('kiwahl')?.remove();
+ const k=(j.kunde&&j.kunde.name||'').trim();
+ const f=j.fahrzeug||{};
+ const fz=[f.plate,f.brand,f.model].filter(Boolean).join(' ').trim();
+ const a=j.ausgabe||{};
+ const art=j.art||'';
+ const tipp = art==='fahrzeugschein' ? 'fahrzeug' : art==='eingangsrechnung' ? 'ausgabe' : 'beleg';
+ const opt=(id,ic,titel,alt,aktiv)=>`
+  <button class="kw-opt ${tipp===id?'tipp':''}" onclick="kiWahl('${id}')" ${aktiv?'':'style="opacity:.45"'} ${aktiv?'':'disabled'}>
+   <div class="kw-ic">${ic}</div>
+   <div class="kw-tx"><b>${titel}${tipp===id?'<span class="kw-tag">erkannt</span>':''}</b><span>${esc(alt||'—')}</span></div>
+  </button>`;
+ const d=document.createElement('div'); d.id='kiwahl';
+ d.innerHTML=`<div class="kw">
+  <h3>Was soll daraus werden?</h3>
+  <div class="kw-sub">Der Beleg wurde gelesen. Wähle, wo die Daten hin sollen.</div>
+  ${opt('kunde','👤','Kunde anlegen',k,!!k)}
+  ${opt('fahrzeug','🚗','Fahrzeug anlegen',fz,!!fz)}
+  ${opt('beleg','📄','Rechnung / Angebot',(j.pos&&j.pos.length?j.pos.length+' Positionen':'Belegdaten'),true)}
+  ${opt('ausgabe','💶','Ausgabe (Eingangsrechnung)',(num(a.gross)>0?eur(num(a.gross))+(a.supplier?' · '+a.supplier:''):''),num(a.gross)>0)}
+  ${(k&&fz)?`<button class="kw-opt" onclick="kiWahl('beides')">
+    <div class="kw-ic">👤🚗</div><div class="kw-tx"><b>Kunde + Fahrzeug zusammen</b><span>${esc(k)} · ${esc(fz)}</span></div></button>`:''}
+  <button class="btn" style="width:100%;margin-top:8px" onclick="document.getElementById('kiwahl').remove()">Abbrechen</button>
+ </div>`;
+ document.body.appendChild(d);
+}
+
+function kiWahl(w){
+ const j=KIDATA||{};
+ document.getElementById('kiwahl')?.remove();
+ if(w==='kunde'||w==='beides'){
+  const c=j.kunde||{};
+  const neu={id:uid(), name:(c.name||'').trim(), phone:(c.phone||'').trim(),
+             email:(c.email||'').trim(), address:(c.address||'').trim(), note:''};
+  S.customers.unshift(neu); save();
+  if(w==='kunde'){ closeModal(); go('kunden'); toast('Kunde angelegt ✓'); editKunde(neu.id); return; }
+  KIDATA._kundeId=neu.id;
+ }
+ if(w==='fahrzeug'||w==='beides'){
+  const f=j.fahrzeug||{};
+  const neu={id:uid(), plate:(f.plate||'').toUpperCase().trim(), brand:(f.brand||'').trim(),
+             model:(f.model||'').trim(), vin:(f.vin||'').trim(), km:(f.km||'').trim(),
+             hsn:(f.hsn||'').trim(), tsn:(f.tsn||'').trim(), ez:(f.ez||'').trim(),
+             fuel:(f.fuel||'').trim(), tuev:(f.tuev||'').trim(),
+             customerId:(KIDATA._kundeId||''), kat:'fahrzeug'};
+  S.vehicles.unshift(neu); save();
+  closeModal(); go('fahrzeuge');
+  toast(w==='beides'?'Kunde + Fahrzeug angelegt ✓':'Fahrzeug angelegt ✓');
+  editFzg(neu.id); return;
+ }
+ if(w==='ausgabe'){
+  const a=j.ausgabe||{};
+  closeModal(); go('ausgaben');
+  setTimeout(()=>{
+   editAusgabe();
+   setTimeout(()=>{
+    const set=(id,v)=>{const e=document.getElementById(id);if(e&&v)e.value=v;};
+    set('f_de',(a.desc||a.supplier||'Eingangsrechnung').trim());
+    set('f_b', num(a.gross)>0?String(num(a.gross)).replace('.',','):'');
+    const bi=document.getElementById('f_b');
+    if(bi&&window.vatCalcHTML){const vi=document.getElementById('vinfo');if(vi)vi.innerHTML=vatCalcHTML(bi.value);}
+   },220);
+  },160);
+  return;
+ }
+ /* Beleg wie bisher */
+ kiFill(j);
+}
+
+/* --- Kategorien --- */
+function katOf(o){ return KATEGORIEN[o&&o.kat] ? o.kat : ''; }
+function katBadge(o){ const k=katOf(o); return k?`<span class="kat ${k}">${KATEGORIEN[k]}</span>`:''; }
+function katPicker(coll,id){
+ const o=(S[coll]||[]).find(x=>x.id===id)||{};
+ return `<div class="fld"><label>Kategorie</label><div class="katpick">
+  ${Object.entries(KATEGORIEN).map(([k,n])=>
+    `<button type="button" class="${o.kat===k?'on':''}" onclick="setKat('${coll}','${id}','${k}')">${n}</button>`).join('')}
+  <button type="button" class="${!o.kat?'on':''}" onclick="setKat('${coll}','${id}','')">—</button>
+ </div></div>`;
+}
+function setKat(coll,id,k){
+ const o=(S[coll]||[]).find(x=>x.id===id); if(!o) return;
+ o.kat=k||undefined; save(); closeModal(); render();
+}
+let KATFILTER='';
+function katFilter(){ return true; }
+function katFilterBar(){
+ const zahl=k=>S.files.filter(f=>f.kat===k).length;
+ return `<div class="katbar" style="padding:8px 0 4px">
+  <button class="kat" style="border-color:var(--line);background:${KATFILTER?'transparent':'#e2e8f0'};cursor:pointer" onclick="KATFILTER='';render()">Alle (${S.files.length})</button>
+  ${Object.entries(KATEGORIEN).map(([k,n])=>
+    `<button class="kat ${k}" style="cursor:pointer;${KATFILTER===k?'outline:2px solid #0f172a':''}" onclick="KATFILTER='${k}';render()">${n} (${zahl(k)})</button>`).join('')}
+ </div>`;
+}
+function katMenu(coll,id){
+ const o=(S[coll]||[]).find(x=>x.id===id)||{};
+ openModal('Kategorie wählen',
+  `<p style="font-size:13.5px;color:var(--muted);margin-bottom:10px">${esc(o.name||o.no||'')}</p>
+   <div class="katpick">
+    ${Object.entries(KATEGORIEN).map(([k,n])=>
+      `<button type="button" class="${o.kat===k?'on':''}" onclick="setKat('${coll}','${id}','${k}')">${n}</button>`).join('')}
+    <button type="button" class="${!o.kat?'on':''}" onclick="setKat('${coll}','${id}','')">Keine</button>
+   </div>`,
+  `<button class="btn" onclick="closeModal()">${t('abbrechen')}</button>`);
 }
 </script>
 
