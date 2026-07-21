@@ -707,7 +707,7 @@ function setLang(l){LANG=l;localStorage.setItem('nb_lang',l);document.documentEl
 <script>
 /* ============ State & Helpers ============ */
 const LSK='nwasb_buero_v1';
-const defState=()=>({settings:{name:'NEUE WELT Auto Service Berlin',short:'NWASB',owner:'Viacheslav Paladian',street:'Antonienstraße 34 N–P',city:'13403 Berlin',phone:'',email:'',taxNo:'17/465/02743',vatId:'DE462158832',bankName:'N26',iban:'DE44 1001 1001 2997 6346 42',bic:'NTSBDEB1XXX',accHolder:'Viacheslav Paladian',kiUrl:'/api/ki',defWage:118,defVat:19,nextRE:1,nextGS:1,nextAN:1,nextAU:1},
+const defState=()=>({settings:{name:'NEUE WELT Auto Service Berlin',short:'NWASB',owner:'Viacheslav Paladian',street:'Antonienstraße 34 N–P',city:'13403 Berlin',phone:'',email:'',taxNo:'17/465/02743',vatId:'DE462158832',bankName:'N26',iban:'DE44 1001 1001 2997 6346 42',bic:'NTSBDEB1XXX',accHolder:'Viacheslav Paladian',kiUrl:'/api/ki',docVorlage:'klassisch',docFarbe:'navy',defWage:118,defVat:19,nextRE:1,nextGS:1,nextAN:1,nextAU:1},
 customers:[],vehicles:[],incomes:[],expenses:[],docs:[],appointments:[],debts:[],files:[],parts:[],suppliers:[],trash:[]});
 let S;
 function load(){try{S=JSON.parse(localStorage.getItem(LSK))||defState();}catch(e){S=defState();}
@@ -1118,7 +1118,7 @@ function vArchiv(){
  const arch=S.docs.filter(d=>d.archived);
  return`<div class="phead"><h1>${t('archiv')} & ${t('dokumente')}</h1>${mobMods()}</div>
  <div class="toolbar"><span class="sp"></span>
-  <label class="abtn blue filebtn" style="background:var(--violet)">${t('hochladen')}<input type="file" accept="image/*,.pdf" onchange="uploadFile(this)"></label></div>
+  <label class="abtn blue filebtn" style="background:var(--violet)">${t('hochladen')}<input type="file" accept="image/*,application/pdf,.pdf" onchange="uploadFile(this)"></label></div>
  <div class="listcard"><div class="lchead">${IC.upl}&nbsp;${t('dokumente')}</div>
   ${S.files.length?S.files.map(f=>`<div class="lrow doclist">${f.mime&&f.mime.startsWith('image')?`<img src="${f.dataUrl}" alt="">`:`<div class="lic" style="background:var(--violet-bg);color:var(--violet)">${IC.doc}</div>`}
    <div class="main"><b>${esc(f.name)}</b><span>${fmtD(f.date)}</span></div>
@@ -1228,7 +1228,7 @@ function repMonat(){
 function vEinst(){
  const s=S.settings;
  const f=(l,k)=>`<div class="fld"><label>${esc(l)}</label><input value="${esc(s[k]||'')}" onchange="S.settings.${k}=this.value.trim();save();toast(t('gespeichert'))"></div>`;
- return`<div class="phead"><h1>${t('einstellungen')}</h1>${mobMods()}</div>${window.securityCard?securityCard():''}${window.cloudCard?cloudCard():''}${window.systemCard?systemCard():''}
+ return`<div class="phead"><h1>${t('einstellungen')}</h1>${mobMods()}</div>${window.securityCard?securityCard():''}${window.cloudCard?cloudCard():''}${window.systemCard?systemCard():''}${window.vorlagenCard?vorlagenCard():''}
  <div class="card" style="margin-top:14px"><div class="lchead" style="border:none;padding:0 0 12px">🌐 ${t('sprache')}</div>
   <div class="seg" style="flex-wrap:wrap">${LANGS.map(([l,n])=>`<button class="${LANG===l?'on':''}" onclick="setLang('${l}')">${n}</button>`).join('')}</div></div>
  <div class="card"><div class="lchead" style="border:none;padding:0 0 12px">🏢 ${t('firmendaten')}</div>
@@ -1320,6 +1320,7 @@ async function pdfFromHTML(html,filename){window._pvPages=[];
  const ifr=document.createElement('iframe');ifr.style.cssText='position:fixed;left:-10000px;top:0;width:794px;height:1123px;border:0';
  document.body.appendChild(ifr);const doc=ifr.contentDocument;doc.open();
  doc.write(`<!DOCTYPE html><html><head><meta charset="utf-8"><style>${DOC_CSS}
+  ${window.vorlageCSS?vorlageCSS():''}
   body{padding:44px 40px;width:794px;box-sizing:border-box;min-height:1123px;display:flex;flex-direction:column}
   .dfoot{margin-top:auto;padding-top:8px}</style></head><body>${html}</body></html>`);doc.close();
  await new Promise(r=>setTimeout(r,420));
@@ -1495,7 +1496,8 @@ function kiPanel(){
  return`<div class="kibox">
   <div class="kih"><div class="star">✦</div><div><b>${t('kiAuto')}</b><small>${t('kiSub')}</small></div></div>
   <div class="kirow">
-   <label class="kibtn filebtn">${t('kiFoto')}<input type="file" accept="image/*,.pdf" capture="environment" onchange="kiPickFile(this)"></label>
+   <label class="kibtn filebtn">📷 Kamera<input type="file" accept="image/*" capture="environment" onchange="kiPickFile(this)"></label>
+   <label class="kibtn filebtn">📁 Datei / PDF<input type="file" accept="image/*,application/pdf,.pdf" onchange="kiPickFile(this)"></label>
    <button type="button" class="kibtn" id="kimicbtn" onclick="kiSpeech()">${t('kiMic')}</button>
    <button type="button" class="kibtn main" onclick="kiRead()">${t('kiRead')}</button>
   </div>
@@ -1537,7 +1539,8 @@ function kiSpeech(){
 const KI_PROMPT=`Du bist ein Assistent einer deutschen Kfz-Werkstatt. Analysiere den Beleg (Bild/PDF) und/oder den diktierten Text und extrahiere die Rechnungsdaten.
 Antworte AUSSCHLIESSLICH mit einem JSON-Objekt, ohne Markdown, ohne Erklärung, exakt in diesem Format:
 {"type":"RE|AN|AU","date":"YYYY-MM-DD","serviceDate":"YYYY-MM-DD","customerName":"","customerAddress":"","vehiclePlate":"","remark":"","pos":[{"desc":"","qty":1,"price":0,"vat":19}]}
-Regeln: type RE=Rechnung, AN=Angebot, AU=Auftrag (Standard RE). Preise sind Netto-Einzelpreise in Euro (Zahl, Punkt als Dezimaltrennzeichen). qty kann Stunden sein. Fehlende Felder: leerer String bzw. heutiges Datum. Erfinde keine Daten.`;
+Regeln: type RE=Rechnung, AN=Angebot, AU=Auftrag (Standard RE). Preise sind Netto-Einzelpreise in Euro (Zahl, Punkt als Dezimaltrennzeichen). qty kann Stunden sein. Erfinde keine Daten.
+WICHTIG zum Datum: "date" und "serviceDate" sind IMMER das heutige Datum ${todayISO()}, ausser der Beleg ist selbst eine Rechnung mit klar erkennbarem Rechnungsdatum. Daten aus dem Fahrzeugschein (Erstzulassung, HU/AU-Faelligkeit, TUEV, Zulassungsdatum) sind NIEMALS das Belegdatum — sie gehoeren in "remark". Ein Datum in der Zukunft oder mehr als 2 Jahre in der Vergangenheit ist falsch: nimm dann ${todayISO()}.`;
 /* KI-Aufruf: direkter Schlüssel (nur dieses Gerät) ODER Vercel-Proxy */
 async function kiCall(body){
  const key=(S.settings.kiKey||'').trim();
@@ -1572,8 +1575,16 @@ function kiFill(j){
  const set=(id,v)=>{const e=document.getElementById(id);if(e&&v!==undefined&&v!==null&&String(v).trim()!=='')e.value=v;};
  const ty=document.getElementById('f_ty');
  if(ty&&!ty.disabled&&['RE','AN','AU'].includes(j.type))ty.value=j.type;
- if(j.date&&/^\d{4}-\d{2}-\d{2}$/.test(j.date))set('f_d',j.date);
- if(j.serviceDate&&/^\d{4}-\d{2}-\d{2}$/.test(j.serviceDate))set('f_ld',j.serviceDate);
+ /* Sicherheitsnetz: unplausible Daten (Zukunft, > 2 Jahre alt) auf heute setzen */
+ const plaus=d=>{
+  if(!d||!/^\d{4}-\d{2}-\d{2}$/.test(d))return todayISO();
+  const t=todayISO();
+  if(d>t)return t;
+  const grenze=new Date(); grenze.setMonth(grenze.getMonth()-12);
+  return d < grenze.toISOString().slice(0,10) ? t : d;
+ };
+ set('f_d',  plaus(j.date));
+ set('f_ld', plaus(j.serviceDate||j.date));
  set('f_cn',j.customerName);set('f_pl',(j.vehiclePlate||'').toUpperCase());
  const ca=document.getElementById('f_ca');if(ca&&j.customerAddress)ca.value=j.customerAddress;
  const rm=document.getElementById('f_r');if(rm&&j.remark)rm.value=j.remark;
@@ -1635,7 +1646,7 @@ function editTeil(id){
   ${fld(t('aliasLbl'),'f_al',p.alias||'','text','placeholder="fren, brake, тормоз…"')}
   <div class="fld"><label>${t('lieferanten')}</label><input id="f_su" value="${esc(p.supplier||'')}" list="suplist"><datalist id="suplist">${S.suppliers.map(x=>`<option value="${esc(x.name)}">`).join('')}</datalist></div>
   <div class="fld"><label>${t('bild')}</label><div id="timgbox">${TIMG?`<img src="${TIMG}" style="width:90px;height:90px;object-fit:cover;border-radius:12px;border:1px solid var(--line)">`:''}</div>
-  <label class="sbtn filebtn" style="display:inline-block;margin-top:6px">📷 ${t('bild')}<input type="file" accept="image/*" capture="environment" onchange="teilImg(this)"></label></div>`,
+  <label class="sbtn filebtn" style="display:inline-block;margin-top:6px">📷 ${t('bild')}<input type="file" accept="image/*" onchange="teilImg(this)"></label></div>`,
  `<button class="abtn white" onclick="closeModal()">${t('abbrechen')}</button><button class="abtn blue" onclick="saveTeil('${id||''}')">${t('speichern')}</button>`);
 }
 function teilImg(inp){const f=inp.files[0];if(!f)return;const r=new FileReader();
@@ -2076,6 +2087,7 @@ async function docPdfBlob(d){window._pvPages=[];
  const ifr=document.createElement('iframe');ifr.style.cssText='position:fixed;left:-10000px;top:0;width:794px;height:1123px;border:0';
  document.body.appendChild(ifr);const doc=ifr.contentDocument;doc.open();
  doc.write(`<!DOCTYPE html><html><head><meta charset="utf-8"><style>${DOC_CSS}
+  ${window.vorlageCSS?vorlageCSS():''}
   body{padding:44px 40px;width:794px;box-sizing:border-box;min-height:1123px;display:flex;flex-direction:column}.dfoot{margin-top:auto;padding-top:8px}</style></head><body>${buildDocX(d)}</body></html>`);doc.close();
  await new Promise(r=>setTimeout(r,420));
  const canvas=await html2canvas(doc.body,{scale:2,backgroundColor:'#ffffff',windowWidth:794});
@@ -5719,6 +5731,145 @@ function trashCard(){
     </div></div>`).join('')}
   ${tr.length>60?`<p style="font-size:12.5px;color:var(--muted);margin-top:10px">… und ${tr.length-60} weitere</p>`:''}
  </div>`;
+}
+</script>
+
+<style>
+/* ---- Vorlagen-Auswahl in den Einstellungen ---- */
+.vorlagen{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:11px;margin-top:6px}
+.vkart{border:2px solid var(--line);border-radius:14px;padding:11px;cursor:pointer;background:var(--card);transition:.15s;text-align:left}
+.vkart:hover{border-color:#94a3b8}
+.vkart.on{border-color:#0f172a;box-shadow:0 4px 14px rgba(15,23,42,.14)}
+.vkart b{display:block;font-size:14px;margin-bottom:3px}
+.vkart span{font-size:11.5px;color:var(--muted);line-height:1.35;display:block}
+.vprev{height:52px;border-radius:8px;margin-bottom:9px;overflow:hidden;background:#fff;border:1px solid var(--line);padding:6px 7px}
+.vprev i{display:block;font-style:normal;background:#c9ced9;border-radius:2px}
+.farben{display:flex;gap:9px;flex-wrap:wrap;margin-top:8px}
+.fkugel{width:34px;height:34px;border-radius:50%;border:3px solid transparent;cursor:pointer;transition:.15s}
+.fkugel.on{border-color:#0f172a;transform:scale(1.08)}
+</style>
+<script>
+/* ============================================================
+   5 Rechnungs-Vorlagen + Farbwahl
+   Ändert nur das Aussehen. Inhalt, Berechnung, QR bleiben gleich.
+   ============================================================ */
+const VORLAGEN = {
+ klassisch:{name:'Klassisch', info:'Wie bisher — Serifen-Logo, Farbbalken'},
+ modern:{   name:'Modern',    info:'Viel Luft, dünne Linien, sachlich'},
+ kompakt:{  name:'Kompakt',   info:'Kleine Schrift, viele Positionen auf eine Seite'},
+ elegant:{  name:'Elegant',   info:'Serifenschrift, feine Linien, hochwertig'},
+ farbig:{   name:'Farbig',    info:'Kräftiger Kopfbalken in deiner Farbe'}
+};
+const DOC_FARBEN = {
+ navy:  {h:'#1F2A4D', a:'#C9A227', name:'Navy / Gold'},
+ schwarz:{h:'#111827', a:'#6B7280', name:'Schwarz / Grau'},
+ rot:   {h:'#9B1C1C', a:'#D97706', name:'Rot / Orange'},
+ gruen: {h:'#14532D', a:'#65A30D', name:'Grün'},
+ blau:  {h:'#1E40AF', a:'#0EA5E9', name:'Blau'}
+};
+function vorlageAktiv(){ return VORLAGEN[S.settings.docVorlage] ? S.settings.docVorlage : 'klassisch'; }
+function farbeAktiv(){ return DOC_FARBEN[S.settings.docFarbe] ? S.settings.docFarbe : 'navy'; }
+
+/* ---- CSS-Zusatz je nach Vorlage ---- */
+function vorlageCSS(){
+ const v=vorlageAktiv(), f=DOC_FARBEN[farbeAktiv()];
+ const H=f.h, A=f.a;
+ /* Farbe gilt für alle Vorlagen */
+ let css=`
+  .dlogo{color:${H}} .dlogo span{color:${A}}
+  .dtitle{color:${H}}
+  .goldline{background:linear-gradient(90deg,${H} 55%,${A} 55%)}
+  .dboxh{color:${A}}
+  .dtbl th{background:${H}}
+  .dsum .grand td{color:${H}}
+  .dqr img{border-color:${H}}
+ `;
+ if(v==='modern') css+=`
+  .dlogo{font-family:'Helvetica Neue',Arial,sans-serif;font-weight:700;letter-spacing:-.4px;font-size:22px}
+  .dtitle{font-family:'Helvetica Neue',Arial,sans-serif;font-weight:700;letter-spacing:2px;text-transform:uppercase;font-size:15px}
+  .goldline{height:1px;background:${H};margin:16px 0 12px;opacity:.35}
+  .dbox{border:none;border-left:2px solid ${A};border-radius:0;padding:2px 0 2px 12px}
+  .dcols{gap:26px;margin-bottom:22px}
+  .dtbl th{background:transparent;color:${H};border-bottom:1.5px solid ${H};padding:6px 8px 8px}
+  .dtbl td{border-bottom:.5px solid #eef1f6;padding:9px 8px}
+  body{font-size:11px;line-height:1.62}
+ `;
+ if(v==='kompakt') css+=`
+  body{font-size:9.8px;line-height:1.34}
+  .dlogo{font-size:17px} .dtitle{font-size:15px}
+  .goldline{height:2px;margin:8px 0 6px}
+  .dbox{padding:6px 8px;border-radius:5px}
+  .dcols{gap:9px;margin-bottom:10px}
+  .dtbl th{font-size:8.5px;padding:4px 6px}
+  .dtbl td{padding:4px 6px}
+  .dsum td{padding:2px 6px}
+  .dsender{margin-bottom:8px}
+ `;
+ if(v==='elegant') css+=`
+  body{font-family:Georgia,'Times New Roman',serif;font-size:11px;line-height:1.6}
+  .dlogo{font-size:24px;letter-spacing:1.2px}
+  .dtitle{font-size:17px;letter-spacing:3px;text-transform:uppercase}
+  .goldline{height:1px;background:${A};margin:14px 0 10px}
+  .dbox{border:none;border-top:1px solid ${A};border-bottom:1px solid #e7e3da;border-radius:0;padding:8px 0}
+  .dboxh{letter-spacing:2.2px}
+  .dtbl th{background:transparent;color:${H};border-top:1px solid ${A};border-bottom:1px solid ${A};font-family:Georgia,serif;text-transform:none;letter-spacing:1.4px;font-size:10px}
+  .dtbl td{border-bottom:.5px solid #eee8dc}
+  .dsum .grand td{border-top:1px solid ${A}}
+ `;
+ if(v==='farbig') css+=`
+  .dhead{background:${H};color:#fff;padding:16px 18px;border-radius:10px;margin-bottom:4px}
+  .dlogo{color:#fff} .dlogo span{color:${A}}
+  .dsub{color:rgba(255,255,255,.72)}
+  .dtitle{color:#fff}
+  .dmeta td{color:rgba(255,255,255,.9)}
+  .goldline{display:none}
+  .dsender{margin-top:10px}
+  .dbox{border-color:${A}33;background:${H}07}
+  .dtbl th{background:${H}}
+ `;
+ return css;
+}
+
+/* Vorlagen-CSS wird direkt im PDF-Stylesheet eingesetzt */
+
+/* ---- Auswahl-Karte für die Einstellungen ---- */
+function vorlagenCard(){
+ const v=vorlageAktiv(), f=farbeAktiv(), F=DOC_FARBEN[f];
+ const prev=k=>{
+  const H=F.h,A=F.a;
+  if(k==='modern')  return `<i style="width:44%;height:7px;background:${H}"></i><i style="width:100%;height:1px;background:${H};opacity:.3;margin:7px 0"></i><i style="width:80%;height:4px;margin-bottom:3px"></i><i style="width:62%;height:4px"></i>`;
+  if(k==='kompakt') return `<i style="width:36%;height:5px;background:${H}"></i><i style="width:100%;height:2px;background:${A};margin:4px 0"></i>`+[1,2,3,4].map(()=>`<i style="width:92%;height:3px;margin-bottom:2px"></i>`).join('');
+  if(k==='elegant') return `<i style="width:52%;height:7px;background:${H}"></i><i style="width:100%;height:1px;background:${A};margin:8px 0"></i><i style="width:74%;height:4px;margin-bottom:4px"></i><i style="width:56%;height:4px"></i>`;
+  if(k==='farbig')  return `<i style="width:100%;height:18px;background:${H};border-radius:3px;margin-bottom:6px"></i><i style="width:82%;height:4px;margin-bottom:3px"></i><i style="width:60%;height:4px"></i>`;
+  return `<i style="width:46%;height:7px;background:${H}"></i><i style="width:100%;height:3px;background:linear-gradient(90deg,${H} 55%,${A} 55%);margin:6px 0"></i><i style="width:86%;height:4px;margin-bottom:3px"></i><i style="width:64%;height:4px"></i>`;
+ };
+ return `<div class="card" style="margin-top:14px">
+  <div class="lchead" style="border:none;padding:0 0 4px">📄 Rechnungs-Vorlage</div>
+  <p style="font-size:13px;color:var(--muted);margin:0 0 12px">Aussehen deiner PDFs. Inhalt, Beträge und QR-Code bleiben in jeder Vorlage gleich.</p>
+  <div class="vorlagen">
+   ${Object.entries(VORLAGEN).map(([k,o])=>`
+    <button class="vkart ${v===k?'on':''}" onclick="setVorlage('${k}')">
+     <div class="vprev">${prev(k)}</div>
+     <b>${o.name}</b><span>${o.info}</span>
+    </button>`).join('')}
+  </div>
+  <div style="margin-top:16px">
+   <div class="lchead" style="border:none;padding:0 0 6px;font-size:14px">Farbe</div>
+   <div class="farben">
+    ${Object.entries(DOC_FARBEN).map(([k,o])=>`
+     <button class="fkugel ${f===k?'on':''}" title="${o.name}"
+      style="background:linear-gradient(135deg,${o.h} 50%,${o.a} 50%)" onclick="setDocFarbe('${k}')"></button>`).join('')}
+   </div>
+  </div>
+  <button class="btn" style="margin-top:14px" onclick="vorlageTest()">👁 Beispiel-PDF ansehen</button>
+ </div>`;
+}
+function setVorlage(k){ S.settings.docVorlage=k; save(); render(); toast(VORLAGEN[k].name+' ✓'); }
+function setDocFarbe(k){ S.settings.docFarbe=k; save(); render(); toast(DOC_FARBEN[k].name+' ✓'); }
+function vorlageTest(){
+ const d=S.docs.find(x=>x.type==='RE')||S.docs[0];
+ if(!d){ toast('Noch keine Rechnung vorhanden'); return; }
+ docPDF(d.id);
 }
 </script>
 
