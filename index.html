@@ -708,7 +708,7 @@ function setLang(l){LANG=l;localStorage.setItem('nb_lang',l);document.documentEl
 /* ============ State & Helpers ============ */
 const LSK='nwasb_buero_v1';
 const defState=()=>({settings:{name:'NEUE WELT Auto Service Berlin',short:'NWASB',owner:'Viacheslav Paladian',street:'Antonienstraße 34 N–P',city:'13403 Berlin',phone:'',email:'',taxNo:'17/465/02743',vatId:'DE462158832',bankName:'N26',iban:'DE44 1001 1001 2997 6346 42',bic:'NTSBDEB1XXX',accHolder:'Viacheslav Paladian',kiUrl:'/api/ki',defWage:118,defVat:19,nextRE:1,nextGS:1,nextAN:1,nextAU:1},
-customers:[],vehicles:[],incomes:[],expenses:[],docs:[],appointments:[],debts:[],files:[],parts:[],suppliers:[]});
+customers:[],vehicles:[],incomes:[],expenses:[],docs:[],appointments:[],debts:[],files:[],parts:[],suppliers:[],trash:[]});
 let S;
 function load(){try{S=JSON.parse(localStorage.getItem(LSK))||defState();}catch(e){S=defState();}
  const d=defState();for(const k in d){if(S[k]===undefined)S[k]=d[k];}for(const k in d.settings){if(S.settings[k]===undefined)S.settings[k]=d.settings[k];}}
@@ -1126,7 +1126,8 @@ function vArchiv(){
  </div>
  <div class="listcard"><div class="lchead">${IC.box}&nbsp;${t('archiv')} (${t('rechnungen')})</div>
   ${arch.length?arch.map(d=>docRow(d,true)).join(''):`<div class="lcempty">${t('keineDaten')}</div>`}
- </div>`;
+ </div>
+ ${window.trashCard?trashCard():''}`;
 }
 function uploadFile(inp){
  const f=inp.files[0];if(!f)return;
@@ -1918,11 +1919,13 @@ if(S.settings.autoLockMin===undefined){S.settings.autoLockMin=10;}
 
 let AUTH=null;try{AUTH=JSON.parse(sessionStorage.getItem('nb_auth'));}catch(e){}
 const ROLE=()=>AUTH?AUTH.role:'chef';
-const MECH_PAGES=['fahrzeuge','termine'];
-function allowPage(p){return ROLE()==='chef'?true:MECH_PAGES.includes(p);}
-function defaultPage(){return ROLE()==='chef'?'start':'termine';}
-function navFor(){return ROLE()==='chef'?NAV:NAV.filter(([p])=>MECH_PAGES.includes(p));}
-function bnavFor(){return ROLE()==='chef'?BNAV:MECH_PAGES;}
+const MECH_PAGES=['fahrzeuge','termine','teile'];
+const BUERO_PAGES=['kunden','fahrzeuge','rechnungen','termine','teile','lieferanten','archiv'];
+const PAGES_FOR=r=>r==='chef'?null:r==='buero'?BUERO_PAGES:MECH_PAGES;
+function allowPage(p){const L=PAGES_FOR(ROLE());return !L||L.includes(p);}
+function defaultPage(){const r=ROLE();return r==='chef'?'start':r==='buero'?'rechnungen':'termine';}
+function navFor(){const L=PAGES_FOR(ROLE());return !L?NAV:NAV.filter(([p])=>L.includes(p));}
+function bnavFor(){const L=PAGES_FOR(ROLE());return !L?BNAV:L.slice(0,5);}
 function lockBtn(){return`<button class="ti" style="margin-left:auto" onclick="lockNow()">🔒 ${t('sperren')}${AUTH?' · '+esc(AUTH.name):''}</button>`;}
 
 let PIN_BUF='';
@@ -1936,7 +1939,7 @@ function showLock(){
   <div class="lp-logo">AB</div>
   <div class="lp-title">AutoBüro</div>
   <div class="lp-sub">${esc(S.settings.name)}</div>
-  ${multiUser?`<select id="lk_u" class="lp-user">${users.map(u=>`<option value="${u.id}">${esc(u.name)} · ${u.role==='chef'?t('rChef'):t('rMech')}</option>`).join('')}</select>`:`<input type="hidden" id="lk_u" value="${users[0]?users[0].id:''}">`}
+  ${multiUser?`<select id="lk_u" class="lp-user">${users.map(u=>`<option value="${u.id}">${esc(u.name)} · ${u.role==='chef'?t('rChef'):u.role==='buero'?'Büro / Sekretariat':t('rMech')}</option>`).join('')}</select>`:`<input type="hidden" id="lk_u" value="${users[0]?users[0].id:''}">`}
   <div class="lp-label">Code</div>
   <div class="lp-dots" id="lk_dots">${[0,1,2,3].map(()=>'<span></span>').join('')}</div>
   <div class="lockerr" id="lk_e"></div>
@@ -1992,7 +1995,7 @@ function securityCard(){
  return`<div class="card" style="margin-top:14px"><div class="lchead" style="border:none;padding:0 0 12px">🔒 ${t('sicherheit')}</div>
  ${std?`<div class="banner">${t('stdPinWarn')}</div>`:''}
  ${us.map(u=>`<div class="lrow" style="padding:10px 0"><div class="lic" style="background:var(--blue-bg);color:var(--blue)">${IC.users}</div>
-   <div class="main"><b>${esc(u.name)}</b><span>${u.role==='chef'?t('rChef'):t('rMech')}</span></div>
+   <div class="main"><b>${esc(u.name)}</b><span>${u.role==='chef'?t('rChef'):u.role==='buero'?'Büro / Sekretariat':t('rMech')}</span></div>
    <div class="rowbtns"><button class="sbtn" onclick="editUser('${u.id}')">✎</button>
    ${us.filter(x=>x.role==='chef').length>1||u.role!=='chef'?`<button class="sbtn red" onclick="delUser('${u.id}')">🗑</button>`:''}</div></div>`).join('')}
  <div class="toolbar" style="margin:10px 0 0"><button class="abtn blue" onclick="editUser()">＋ ${t('benutzer')}</button>
@@ -2005,7 +2008,7 @@ function editUser(id){
  const u=id?S.settings.users.find(x=>x.id===id):{role:'mechaniker'};
  openModal(t('benutzer'),
  `${fld(t('name')+' *','f_un',u.name)}
-  <div class="fld"><label>${t('rolle')}</label><select id="f_ur"><option value="chef" ${u.role==='chef'?'selected':''}>${t('rChef')}</option><option value="mechaniker" ${u.role==='mechaniker'?'selected':''}>${t('rMech')}</option></select></div>
+  <div class="fld"><label>${t('rolle')}</label><select id="f_ur"><option value="chef" ${u.role==='chef'?'selected':''}>${t('rChef')}</option><option value="buero" ${u.role==='buero'?'selected':''}>Büro / Sekretariat</option><option value="mechaniker" ${u.role==='mechaniker'?'selected':''}>${t('rMech')}</option></select></div>
   ${fld(t('pinNeu')+(id?' ('+t('alle')+': —)':' *'),'f_up','','password','inputmode="numeric" autocomplete="new-password" placeholder="••••"')}`,
  `<button class="abtn white" onclick="closeModal()">${t('abbrechen')}</button><button class="abtn blue" onclick="saveUser('${id||''}')">${t('speichern')}</button>`);
 }
@@ -5631,6 +5634,92 @@ async function pinForceSave(){
   return r;
  };
 })();
+</script>
+
+<style>
+/* ---- Papierkorb ---- */
+.trashbar{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:12px}
+.trashbar .cnt{font-size:13px;color:var(--muted)}
+.trow{display:flex;align-items:center;gap:11px;padding:11px 0;border-bottom:1px solid var(--line)}
+.trow .tic{width:34px;height:34px;border-radius:9px;background:#fef2f2;color:#B42318;display:flex;align-items:center;justify-content:center;font-size:15px;flex:0 0 34px}
+.trow .tmain{flex:1;min-width:0}
+.trow .tmain b{display:block;font-size:14.5px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.trow .tmain span{font-size:12.5px;color:var(--muted)}
+.trow .tact{display:flex;gap:6px;flex-shrink:0}
+</style>
+<script>
+/* ============================================================
+   Papierkorb: Gelöschtes bleibt erhalten und kann zurückgeholt werden
+   ============================================================ */
+const TRASH_LABEL={customers:'Kunde',vehicles:'Fahrzeug',docs:'Dokument',incomes:'Einnahme',
+ expenses:'Ausgabe',appointments:'Termin',debts:'Schuld',parts:'Teil',suppliers:'Lieferant',files:'Datei'};
+
+function trashTitle(coll,it){
+ if(!it) return '';
+ if(coll==='docs')   return (it.no||'')+' · '+(it.customerName||'');
+ if(coll==='customers') return it.name||'';
+ if(coll==='vehicles')  return (it.plate||'')+' '+[it.brand,it.model].filter(Boolean).join(' ');
+ if(coll==='incomes'||coll==='expenses') return (it.desc||it.text||'')+' · '+eur(num(it.gross));
+ if(coll==='appointments') return (it.title||'')+' · '+(it.date||'');
+ if(coll==='parts')     return (it.name||'')+' '+(it.nr?'· '+it.nr:'');
+ if(coll==='suppliers') return it.name||'';
+ if(coll==='debts')     return (it.who||it.name||'')+' · '+eur(num(it.amount));
+ return it.name||it.title||it.desc||it.id||'';
+}
+
+/* delItem ersetzen: nicht löschen, sondern in den Papierkorb legen */
+(function(){
+ window.delItem=function(coll,id){
+  if(!confirm(t('wirklich')))return;
+  const it=(S[coll]||[]).find(x=>x.id===id);
+  if(it){
+   S.trash=S.trash||[];
+   S.trash.unshift({tid:uid(), coll, at:new Date().toISOString(),
+                    by:(AUTH&&AUTH.name)||'', item:JSON.parse(JSON.stringify(it))});
+   if(S.trash.length>500) S.trash.length=500;   /* Deckel gegen Speicherüberlauf */
+  }
+  S[coll]=S[coll].filter(x=>x.id!==id);
+  save(); toast(t('geloescht')+' → Papierkorb'); render();
+ };
+})();
+
+function trashRestore(tid){
+ const e=(S.trash||[]).find(x=>x.tid===tid); if(!e) return;
+ S[e.coll]=S[e.coll]||[];
+ if(S[e.coll].some(x=>x.id===e.item.id)) e.item.id=uid();   /* falls Nummer schon vergeben */
+ S[e.coll].unshift(e.item);
+ S.trash=S.trash.filter(x=>x.tid!==tid);
+ save(); toast('Wiederhergestellt ✓'); render();
+}
+function trashPurge(tid){
+ if(!confirm('Endgültig löschen? Das kann nicht rückgängig gemacht werden.'))return;
+ S.trash=(S.trash||[]).filter(x=>x.tid!==tid);
+ save(); toast('Endgültig gelöscht'); render();
+}
+function trashPurgeAll(){
+ const n=(S.trash||[]).length; if(!n) return;
+ if(!confirm('Papierkorb komplett leeren ('+n+' Einträge)? Das kann nicht rückgängig gemacht werden.'))return;
+ S.trash=[]; save(); toast('Papierkorb geleert'); render();
+}
+function trashCard(){
+ const tr=S.trash||[];
+ return `<div class="card" style="margin-top:14px">
+  <div class="lchead" style="border:none;padding:0 0 12px">🗑 Papierkorb</div>
+  <div class="trashbar">
+   <span class="cnt">${tr.length?tr.length+' gelöschte Einträge — nichts geht verloren.':'Leer. Gelöschte Einträge landen hier und können zurückgeholt werden.'}</span>
+   ${tr.length?`<span style="flex:1"></span><button class="sbtn red" onclick="trashPurgeAll()">Alles endgültig löschen</button>`:''}
+  </div>
+  ${tr.slice(0,60).map(e=>`<div class="trow">
+    <div class="tic">${(TRASH_LABEL[e.coll]||'?')[0]}</div>
+    <div class="tmain"><b>${esc(trashTitle(e.coll,e.item))||'(ohne Bezeichnung)'}</b>
+     <span>${TRASH_LABEL[e.coll]||e.coll} · gelöscht ${fmtD(e.at.slice(0,10))}${e.by?' von '+esc(e.by):''}</span></div>
+    <div class="tact">
+     <button class="sbtn" onclick="trashRestore('${e.tid}')">↩ Zurück</button>
+     <button class="sbtn red" onclick="trashPurge('${e.tid}')">🗑</button>
+    </div></div>`).join('')}
+  ${tr.length>60?`<p style="font-size:12.5px;color:var(--muted);margin-top:10px">… und ${tr.length-60} weitere</p>`:''}
+ </div>`;
+}
 </script>
 
 </body>
