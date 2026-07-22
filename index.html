@@ -732,7 +732,7 @@ const gv=id=>{const e=document.getElementById(id);return e?e.value.trim():'';};
 const fld=(l,id,v='',type='text',ex='')=>`<div class="fld"><label>${esc(l)}</label><input id="${id}" type="${type}" value="${esc(v)}" ${ex}></div>`;
 /* SVG icons (lucide-style) */
 const svg=(p,w=2)=>`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="${w}" stroke-linecap="round" stroke-linejoin="round">${p}</svg>`;
-const IC={home:svg('<path d="M3 10.5 12 3l9 7.5"/><path d="M5 9.5V21h14V9.5"/>'),wallet:svg('<rect x="3" y="6" width="18" height="14" rx="3"/><path d="M16 12h.01M3 10h18"/>'),up:svg('<path d="M3 17l6-6 4 4 8-8"/><path d="M15 7h6v6"/>'),down:svg('<path d="M3 7l6 6 4-4 8 8"/><path d="M15 17h6v-6"/>'),users:svg('<circle cx="9" cy="8" r="3.5"/><path d="M2.5 20c.8-3.2 3.4-5 6.5-5s5.7 1.8 6.5 5"/><path d="M16 4.5a3.5 3.5 0 0 1 0 7"/><path d="M17.5 15c2.2.5 3.6 2 4 5"/>'),car:svg('<path d="M4 15l1.5-5.5A2 2 0 0 1 7.4 8h9.2a2 2 0 0 1 1.9 1.5L20 15"/><rect x="3" y="15" width="18" height="4" rx="1.5"/><circle cx="7" cy="19" r="1.5"/><circle cx="17" cy="19" r="1.5"/>'),doc:svg('<path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5M9 13h6M9 17h6"/>'),cal:svg('<rect x="3" y="5" width="18" height="16" rx="3"/><path d="M8 3v4M16 3v4M3 10h18"/>'),box:svg('<path d="M21 8l-9-5-9 5v8l9 5 9-5z"/><path d="M3 8l9 5 9-5M12 13v8"/>'),debt:svg('<rect x="3" y="7" width="18" height="12" rx="2"/><path d="M3 11h18M8 15h4"/>'),chart:svg('<path d="M4 20V10M10 20V4M16 20v-8M22 20H2"/>'),gear:svg('<circle cx="12" cy="12" r="3"/><path d="M19 12a7 7 0 0 0-.1-1.2l2-1.5-2-3.4-2.3 1a7 7 0 0 0-2-1.2L14.2 3h-4l-.4 2.7a7 7 0 0 0-2 1.2l-2.3-1-2 3.4 2 1.5A7 7 0 0 0 5 12c0 .4 0 .8.1 1.2l-2 1.5 2 3.4 2.3-1a7 7 0 0 0 2 1.2l.4 2.7h4l.4-2.7a7 7 0 0 0 2-1.2l2.3 1 2-3.4-2-1.5c.1-.4.1-.8.1-1.2z"/>'),plus:svg('<path d="M12 5v14M5 12h14"/>',2.4),upl:svg('<path d="M12 16V4M6 10l6-6 6 6"/><path d="M4 20h16"/>'),warn:svg('<circle cx="12" cy="12" r="9"/><path d="M12 7.5v5M12 16h.01"/>')};
+const IC={home:svg('<path d="M3 10.5 12 3l9 7.5"/><path d="M5 9.5V21h14V9.5"/>'),wallet:svg('<rect x="3" y="6" width="18" height="14" rx="3"/><path d="M16 12h.01M3 10h18"/>'),up:svg('<path d="M3 17l6-6 4 4 8-8"/><path d="M15 7h6v6"/>'),down:svg('<path d="M3 7l6 6 4-4 8 8"/><path d="M15 17h6v-6"/>'),users:svg('<circle cx="9" cy="8" r="3.5"/><path d="M2.5 20c.8-3.2 3.4-5 6.5-5s5.7 1.8 6.5 5"/><path d="M16 4.5a3.5 3.5 0 0 1 0 7"/><path d="M17.5 15c2.2.5 3.6 2 4 5"/>'),car:svg('<path d="M4 15l1.5-5.5A2 2 0 0 1 7.4 8h9.2a2 2 0 0 1 1.9 1.5L20 15"/><rect x="3" y="15" width="18" height="4" rx="1.5"/><circle cx="7" cy="19" r="1.5"/><circle cx="17" cy="19" r="1.5"/>'),doc:svg('<path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5M9 13h6M9 17h6"/>'),cal:svg('<rect x="3" y="5" width="18" height="16" rx="3"/><path d="M8 3v4M16 3v4M3 10h18"/>'),box:svg('<path d="M21 8l-9-5-9 5v8l9 5 9-5z"/><path d="M3 8l9 5 9-5M12 13v8"/>'),debt:svg('<rect x="3" y="7" width="18" height="12" rx="2"/><path d="M3 11h18M8 15h4"/>'),chart:svg('<path d="M4 20V10M10 20V4M16 20v-8M22 20H2"/>'),euro:svg('<path d="M15 5.5A6 6 0 1 0 15 18M4 10h8M4 14h7"/>'),gear:svg('<circle cx="12" cy="12" r="3"/><path d="M19 12a7 7 0 0 0-.1-1.2l2-1.5-2-3.4-2.3 1a7 7 0 0 0-2-1.2L14.2 3h-4l-.4 2.7a7 7 0 0 0-2 1.2l-2.3-1-2 3.4 2 1.5A7 7 0 0 0 5 12c0 .4 0 .8.1 1.2l-2 1.5 2 3.4 2.3-1a7 7 0 0 0 2 1.2l.4 2.7h4l.4-2.7a7 7 0 0 0 2-1.2l2.3 1 2-3.4-2-1.5c.1-.4.1-.8.1-1.2z"/>'),plus:svg('<path d="M12 5v14M5 12h14"/>',2.4),upl:svg('<path d="M12 16V4M6 10l6-6 6 6"/><path d="M4 20h16"/>'),warn:svg('<circle cx="12" cy="12" r="9"/><path d="M12 7.5v5M12 16h.01"/>')};
 /* Kategorien Ausgaben */
 const CATS=['catMaterial','catMiete','catLohn','catVersicherung','catWerkzeug','catKraftstoff','catBuero','catSonst'];
 /* Berechnungen */
@@ -756,7 +756,7 @@ const docGross=d=>docNet(d)-docDisc(d)+docVat(d);
 const TYPEN={RE:'rechnung',AN:'angebot',AU:'auftrag',GS:'gutschrift'};
 
 /* ============ Router ============ */
-const NAV=[['start','home'],['kasse','wallet'],['einnahmen','up'],['ausgaben','down'],['kunden','users'],['fahrzeuge','car'],['teile','part'],['lieferanten','truck'],['rechnungen','doc'],['termine','cal'],['archiv','box'],['schulden','debt'],['berichte','chart'],['einstellungen','gear']];
+const NAV=[['start','home'],['kasse','wallet'],['einnahmen','up'],['ausgaben','down'],['kunden','users'],['fahrzeuge','car'],['teile','part'],['lieferanten','truck'],['rechnungen','doc'],['termine','cal'],['archiv','box'],['schulden','debt'],['berichte','chart'],['steuer','euro'],['einstellungen','gear']];
 const BNAV=['start','kasse','einnahmen','ausgaben','kunden'];
 let PAGE='start';
 function go(p){if(window.allowPage&&!allowPage(p))p=window.defaultPage?defaultPage():'start';PAGE=p;render();window.scrollTo(0,0);}
@@ -764,7 +764,7 @@ function render(){
  document.getElementById('tnav').innerHTML=`<div class="tlogo"><div class="nb">AB</div><b>Auto<small>Büro</small></b></div>`+
   (window.navFor?navFor():NAV).map(([p,i])=>`<button class="ti ${PAGE===p?'on':''}" onclick="go('${p}')">${IC[i]}${t(p)}</button>`).join('')+(window.gsBtn?gsBtn():'')+(window.langBtn?langBtn():'')+(window.lockBtn?lockBtn():'');
  document.getElementById('bnav').innerHTML=(window.bnavFor?bnavFor():BNAV).map(p=>{const ic={start:'home',kasse:'wallet',einnahmen:'up',ausgaben:'down',kunden:'users'}[p];return`<button class="${PAGE===p?'on':''}" onclick="go('${p}')">${IC[ic]}${t(p)}</button>`;}).join('');
- const V={start:vStart,kasse:vKasse,einnahmen:vEin,ausgaben:vAus,kunden:vKunden,fahrzeuge:vFzg,teile:window.vTeile,lieferanten:window.vLief,rechnungen:vRech,termine:vTermine,archiv:vArchiv,schulden:vSchulden,berichte:vBerichte,einstellungen:vEinst}[PAGE];
+ const V={start:vStart,kasse:vKasse,einnahmen:vEin,ausgaben:vAus,kunden:vKunden,fahrzeuge:vFzg,teile:window.vTeile,lieferanten:window.vLief,rechnungen:vRech,termine:vTermine,archiv:vArchiv,schulden:vSchulden,berichte:vBerichte,steuer:window.vSteuer,einstellungen:vEinst}[PAGE];
  document.getElementById('view').innerHTML=V?V():'';
 }
 function mobMods(){return`<div id="mobmods">${(window.navFor?navFor().slice(5):NAV.slice(5)).map(([p])=>`<button class="pill ${PAGE===p?'blue':''}" onclick="go('${p}')">${t(p)}</button>`).join('')}${window.openGSearch?`<button class="pill" onclick="openGSearch()">🔍</button>`:''}${window.lockNow?`<button class="pill" onclick="lockNow()">🔒 ${t('sperren')}</button>`:''}</div>`;}
@@ -949,7 +949,8 @@ function editFzg(id){
   <div class="fld"><label>${t('modell')}</label><input id="f_mo" value="${esc(v.model||'')}" list="modelllist"></div></div>
   ${window.carDatalists?carDatalists(v.brand||''):''}
   ${fld(t('vin'),'f_vin',v.vin)}
-  <div class="fld"><label>${t('kunde')}</label><select id="f_c"><option value=""></option>${S.customers.map(c=>`<option value="${c.id}" ${v.customerId===c.id?'selected':''}>${esc(c.name)}</option>`).join('')}</select></div>`,
+  <div class="fld"><label>${t('kunde')}</label><select id="f_c"><option value=""></option>${S.customers.map(c=>`<option value="${c.id}" ${v.customerId===c.id?'selected':''}>${esc(c.name)}</option>`).join('')}</select></div>
+  ${id&&window.fzgFotoBlock?fzgFotoBlock(id):''}`,
  `<button class="abtn white" onclick="closeModal()">${t('abbrechen')}</button><button class="abtn blue" onclick="saveFzg('${id||''}')">${t('speichern')}</button>`);
 }
 function saveFzg(id){if(!gv('f_pl'))return;const o={plate:gv('f_pl').toUpperCase(),brand:gv('f_ma'),model:gv('f_mo'),vin:gv('f_vin').toUpperCase(),km:gv('f_km'),customerId:gv('f_c')};
@@ -2375,6 +2376,8 @@ function askChoice(msg,opts,cb){
 /* ---- payDoc: Bar/Bank sorusu → Tageskasse doğru ---- */
 payDoc=function(id){
  const d=S.docs.find(x=>x.id===id);if(!d)return;
+ const _ym=todayISO().slice(0,7);
+ if(window.istGesperrt&&istGesperrt(_ym)&&!stxGuardChange(_ym,'Zahlung gebucht: '+(d.no||'')))return;
  askChoice(t('zahlungsartFrage')+' · '+d.no+' ('+eur(docGross(d))+')',
   [{label:'💶 '+t('bar'),val:'bar',color:'var(--green)'},{label:'🏦 '+t('bank'),val:'bank'},{label:'💳 '+t('karte'),val:'karte'}],
   m=>{d.status='bezahlt';
@@ -5998,7 +6001,12 @@ function kiWahl(w){
  }
  if(w==='fahrzeug'||w==='beides'){
   const f=j.fahrzeug||{};
-  const neu={id:uid(), plate:(f.plate||'').toUpperCase().trim(), brand:(f.brand||'').trim(),
+  const plate=(f.plate||'').toUpperCase().trim();
+  /* Plate schon vorhanden? → fragen statt doppelt anlegen */
+  const norm=x=>(x||'').replace(/\s|-/g,'').toUpperCase();
+  const vorhanden=plate?S.vehicles.find(v=>norm(v.plate)===norm(plate)):null;
+  if(vorhanden){ plateKonflikt(vorhanden, f, w); return; }
+  const neu={id:uid(), plate, brand:(f.brand||'').trim(),
              model:(f.model||'').trim(), vin:(f.vin||'').trim(), km:(f.km||'').trim(),
              hsn:(f.hsn||'').trim(), tsn:(f.tsn||'').trim(), ez:(f.ez||'').trim(),
              fuel:(f.fuel||'').trim(), tuev:(f.tuev||'').trim(),
@@ -6062,6 +6070,370 @@ function katMenu(coll,id){
     <button type="button" class="${!o.kat?'on':''}" onclick="setKat('${coll}','${id}','')">Keine</button>
    </div>`,
   `<button class="btn" onclick="closeModal()">${t('abbrechen')}</button>`);
+}
+</script>
+
+<style>
+/* ---- Steuer / UStVA ---- */
+.stx-head{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:14px}
+.stx-msel{font-size:15px;font-weight:600;padding:9px 12px;border:1px solid var(--line);border-radius:10px;background:var(--card)}
+.stx-lock{font-size:12px;font-weight:700;padding:4px 10px;border-radius:8px}
+.stx-lock.zu{background:#FEF3F2;color:#B42318}
+.stx-lock.of{background:#F0FDF4;color:#15803D}
+.stx-card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:16px;margin-bottom:14px}
+.stx-card h3{font-size:13px;letter-spacing:1px;text-transform:uppercase;color:var(--muted);margin:0 0 12px}
+.stx-row{display:flex;align-items:flex-start;gap:11px;padding:10px 0;border-bottom:1px solid var(--line)}
+.stx-row:last-child{border-bottom:none}
+.stx-ic{width:26px;height:26px;border-radius:7px;display:flex;align-items:center;justify-content:center;font-size:14px;flex:0 0 26px}
+.stx-ic.stop{background:#FEF3F2;color:#B42318}
+.stx-ic.warn{background:#FFFBEB;color:#B45309}
+.stx-ic.ok{background:#F0FDF4;color:#15803D}
+.stx-tx{flex:1;min-width:0;font-size:13.5px;line-height:1.4}
+.stx-tx b{color:var(--fg)}
+.stx-tx span{color:var(--muted);font-size:12.5px;display:block;margin-top:1px}
+.stx-kz{display:flex;align-items:center;justify-content:space-between;padding:12px 14px;border:1px solid var(--line);border-radius:11px;margin-bottom:8px;background:var(--card)}
+.stx-kz .kzl{font-size:13.5px}
+.stx-kz .kzl b{display:inline-block;min-width:52px;color:#1F2A4D;font-weight:800}
+.stx-kz .kzr{display:flex;align-items:center;gap:10px}
+.stx-kz .kzv{font-size:16px;font-weight:800;font-variant-numeric:tabular-nums}
+.stx-copy{border:1px solid var(--line);background:var(--card);border-radius:8px;padding:5px 11px;font-size:12.5px;font-weight:600;cursor:pointer}
+.stx-copy:active{background:#e2e8f0}
+.stx-zahl{background:#1F2A4D;color:#fff;border-radius:12px;padding:14px 16px;display:flex;align-items:center;justify-content:space-between;margin-top:4px}
+.stx-zahl .zl{font-size:14px;opacity:.85}
+.stx-zahl .zv{font-size:22px;font-weight:800}
+.stx-btn{width:100%;border:none;border-radius:12px;padding:14px;font-size:15px;font-weight:700;cursor:pointer;margin-top:6px}
+.stx-btn.zu{background:#1F2A4D;color:#fff}
+.stx-btn.grau{background:#e2e8f0;color:#94a3b8;cursor:not-allowed}
+.stx-btn.auf{background:#fff;color:#B42318;border:1.5px solid #f3c6c2}
+.stx-hist{font-size:12.5px;color:var(--muted);padding:7px 0;border-bottom:1px dotted var(--line)}
+.stx-hist b{color:var(--fg)}
+</style>
+<script>
+/* ============================================================
+   STEUER — UStVA-Vorbereitung (Ist-Versteuerung)
+   Vorprüfung → Kennzahlen (ELSTER) → Monatsabschluss (Sperre)
+   ============================================================ */
+const UST_SATZ = 19;
+
+/* Ist-Versteuerung: nur BEZAHLTE Rechnungen zählen, am Zahltag.
+   Einnahmen entstehen über payDoc → S.incomes (mit invoiceId, method, date). */
+function steuerMonat(){ return S.settings._stxMonat || todayISO().slice(0,7); }
+
+/* Einnahmen des Monats = bezahlte Rechnungen (Ist) über S.incomes */
+function ustEinnahmen(ym){
+ return S.incomes.filter(i=>i.date&&i.date.startsWith(ym)&&i.invoiceId);
+}
+function ustAusgaben(ym){
+ return S.expenses.filter(e=>e.date&&e.date.startsWith(ym));
+}
+
+function ustZahlen(ym){
+ const ein=ustEinnahmen(ym), aus=ustAusgaben(ym);
+ const netto19 = ein.reduce((a,i)=>a+num(i.net),0);
+ const ust     = ein.reduce((a,i)=>a+num(i.vat),0);
+ const vorsteuer = aus.reduce((a,e)=>a+num(e.vat),0);
+ const zahllast = ust - vorsteuer;
+ return {netto19, ust, vorsteuer, zahllast, anzahl:ein.length};
+}
+
+/* ---- VORPRÜFUNG ---- */
+function ustPruef(ym){
+ const stop=[], warn=[], ok=[];
+ const reAll = S.docs.filter(d=>d.type==='RE'&&!d.archived);
+ const reMon = reAll.filter(d=>(d.date||'').startsWith(ym));
+ const bezahltMon = ustEinnahmen(ym);
+
+ /* STOP: bezahlte Rechnung ohne Kunde */
+ bezahltMon.forEach(i=>{
+  const d=S.docs.find(x=>x.id===i.invoiceId);
+  if(d && !(d.customerName||'').trim())
+   stop.push({t:`${d.no} · Kunde fehlt`, s:'Bezahlte Rechnung ohne Kundenname'});
+ });
+ /* STOP: doppelte Rechnungsnummer */
+ const nums={};
+ reAll.forEach(d=>{ if(d.no){nums[d.no]=(nums[d.no]||0)+1;} });
+ Object.entries(nums).filter(([k,v])=>v>1).forEach(([k,v])=>
+  stop.push({t:`Rechnungsnummer ${k} ${v}× vergeben`, s:'Jede Nummer darf nur einmal existieren (GoBD)'}));
+ /* STOP: bezahlte Rechnung mit 0 € */
+ bezahltMon.forEach(i=>{ if(num(i.gross)<=0){
+  const d=S.docs.find(x=>x.id===i.invoiceId);
+  stop.push({t:`${(d&&d.no)||i.desc} · Betrag 0 €`, s:'Bezahlt gemeldet, aber Betrag ist 0'});
+ }});
+
+ /* WARN: Rechnungsnummer-Lücken */
+ const seq = reAll.map(d=>{const m=(d.no||'').match(/(\d+)\s*$/);return m?parseInt(m[1]):null;}).filter(x=>x!==null).sort((a,b)=>a-b);
+ if(seq.length>1){
+  const luecken=[];
+  for(let i=1;i<seq.length;i++){ for(let n=seq[i-1]+1;n<seq[i];n++) luecken.push(n); }
+  if(luecken.length) warn.push({t:`${luecken.length} fehlende Rechnungsnummer(n)`, s:'Nr. '+luecken.slice(0,6).join(', ')+(luecken.length>6?' …':'')+' — evtl. Storno? (GoBD: keine Lücken)'});
+ }
+ /* WARN: Kasse negativ an einem Tag */
+ const kNeg = kasseNegativTage(ym);
+ if(kNeg.length) warn.push({t:`Kasse an ${kNeg.length} Tag(en) negativ`, s:kNeg.slice(0,3).map(x=>fmtD(x.d)+' ('+eur(x.b)+')').join(' · ')+' — Kasse kann real nie negativ sein'});
+ /* WARN: bezahlte Rechnung ohne passende Einnahme-Doppelung (Selbstcheck) */
+ const reBezMon = reMon.filter(d=>d.status==='bezahlt');
+ reBezMon.forEach(d=>{ if(!S.incomes.some(i=>i.invoiceId===d.id))
+  warn.push({t:`${d.no} · als bezahlt markiert, keine Einnahme gebucht`, s:'Sollte automatisch gebucht sein — bitte prüfen'});
+ });
+ /* WARN: Ausgabe ohne Beleg */
+ const ohneBeleg = ustAusgaben(ym).filter(e=>!e.hasBeleg && !e.belegId);
+ if(ohneBeleg.length) warn.push({t:`${ohneBeleg.length} Ausgabe(n) ohne Beleg`, s:'Für Vorsteuerabzug ist ein Beleg nötig'});
+ /* WARN: alte offene Aufträge/Rechnungen */
+ const offen = reAll.filter(d=>d.status!=='bezahlt' && d.date && d.date<ym+'-01');
+ if(offen.length) warn.push({t:`${offen.length} offene Rechnung(en) aus Vormonaten`, s:'Bei Ist-Versteuerung erst bei Zahlung steuerwirksam'});
+
+ /* OK-Zusammenfassung */
+ const z=ustZahlen(ym);
+ ok.push({t:`${z.anzahl} bezahlte Rechnung(en) · Umsatz netto ${eur(z.netto19)}`, s:''});
+ ok.push({t:`Kasse aktuell ${eur(cashBalance())}`, s:''});
+
+ return {stop, warn, ok, zahlen:z};
+}
+
+function kasseNegativTage(ym){
+ const rows=[...S.incomes.filter(i=>i.method==='bar').map(i=>({d:i.date,v:+num(i.gross)})),
+            ...S.expenses.filter(e=>e.method==='bar').map(e=>({d:e.date,v:-num(e.gross)}))]
+            .filter(x=>x.d).sort((a,b)=>a.d.localeCompare(b.d));
+ let bal=0; const neg=[];
+ rows.forEach(r=>{ bal+=r.v; if(bal<-0.005 && (r.d||'').startsWith(ym)) neg.push({d:r.d,b:bal}); });
+ return neg;
+}
+
+/* ---- SPERRE / ABSCHLUSS ---- */
+function istGesperrt(ym){ return !!(S.settings._locks && S.settings._locks[ym]); }
+function lockInfo(ym){ return (S.settings._locks||{})[ym]; }
+
+function monatAbschliessen(ym){
+ const p=ustPruef(ym);
+ if(p.stop.length){ toast('Erst '+p.stop.length+' Fehler beheben'); return; }
+ if(!confirm(`${ym} abschließen und sperren?\n\nZahllast: ${eur(p.zahlen.zahllast)}\n\nDanach sind Änderungen nur mit Begründung möglich.`)) return;
+ S.settings._locks = S.settings._locks || {};
+ S.settings._locks[ym] = {
+  at:new Date().toISOString(), by:(AUTH&&AUTH.name)||'',
+  kz81:+p.zahlen.netto19.toFixed(2), ust:+p.zahlen.ust.toFixed(2),
+  kz66:+p.zahlen.vorsteuer.toFixed(2), kz83:+p.zahlen.zahllast.toFixed(2),
+  changes:[]
+ };
+ save(); render(); toast(ym+' abgeschlossen 🔒');
+}
+function monatOeffnen(ym){
+ if(ROLE()!=='chef'){ toast('Nur Chef kann entsperren'); return; }
+ const grund=prompt('Warum wird '+ym+' wieder geöffnet? (Grund wird protokolliert)');
+ if(!grund||!grund.trim()) return;
+ const L=S.settings._locks[ym];
+ if(L){ L.changes.push({at:new Date().toISOString(),by:(AUTH&&AUTH.name)||'',was:'ENTSPERRT: '+grund.trim()}); }
+ delete S.settings._locks[ym];
+ S.settings._reopenLog = S.settings._reopenLog || [];
+ S.settings._reopenLog.push({ym,at:new Date().toISOString(),by:(AUTH&&AUTH.name)||'',grund:grund.trim()});
+ save(); render(); toast(ym+' geöffnet');
+}
+
+/* Nachträgliche Änderung an gesperrtem Monat protokollieren (mit Grund) */
+function stxGuardChange(ym, text){
+ if(!istGesperrt(ym)) return true;
+ if(ROLE()!=='chef'){ alert('Dieser Monat ist abgeschlossen. Nur der Chef kann Änderungen vornehmen.'); return false; }
+ const grund=prompt('⚠️ '+ym+' ist bereits an das Finanzamt gemeldet.\n\nÄnderung nur mit Begründung. Warum?');
+ if(!grund||!grund.trim()) return false;
+ const L=S.settings._locks[ym];
+ if(L){ L.changes.push({at:new Date().toISOString(),by:(AUTH&&AUTH.name)||'',was:text+' — '+grund.trim()}); save(); }
+ return true;
+}
+
+function copyKz(v){
+ const s=(Math.round(v*100)/100).toFixed(2).replace('.',',');
+ navigator.clipboard?.writeText(s).then(()=>toast('Kopiert: '+s),()=>toast(s));
+}
+
+/* ---- SEITE ---- */
+function vSteuer(){
+ const ym=steuerMonat();
+ const p=ustPruef(ym);
+ const z=p.zahlen;
+ const gesperrt=istGesperrt(ym);
+ const L=lockInfo(ym);
+ const monate=[];
+ for(let i=0;i<18;i++){ const d=new Date(); d.setMonth(d.getMonth()-i); monate.push(d.toISOString().slice(0,7)); }
+
+ const kannAbschliessen = p.stop.length===0 && !gesperrt;
+
+ return `<div class="phead"><h1>Steuer / UStVA</h1>${mobMods()}</div>
+ <div class="stx-head">
+  <select class="stx-msel" onchange="S.settings._stxMonat=this.value;save();render()">
+   ${monate.map(m=>`<option value="${m}" ${m===ym?'selected':''}>${m}${istGesperrt(m)?' 🔒':''}</option>`).join('')}
+  </select>
+  <span class="stx-lock ${gesperrt?'zu':'of'}">${gesperrt?'🔒 Abgeschlossen':'🔓 Offen'}</span>
+  <span style="flex:1"></span>
+  <span style="font-size:12.5px;color:var(--muted)">Ist-Versteuerung · ${UST_SATZ}%</span>
+ </div>
+
+ ${gesperrt&&L?`<div class="stx-card" style="border-color:#bbe7cd;background:#f6fdf9">
+   <h3>🔒 An das Finanzamt gemeldet</h3>
+   <div style="font-size:13px;color:var(--muted);margin-bottom:10px">Abgeschlossen ${fmtD(L.at.slice(0,10))}${L.by?' von '+esc(L.by):''}</div>
+   <div class="stx-kz"><span class="kzl"><b>Kz 81</b> Umsatz netto ${UST_SATZ}%</span><span class="kzr"><span class="kzv">${eur(L.kz81)}</span></span></div>
+   <div class="stx-kz"><span class="kzl"><b>Kz 66</b> Vorsteuer</span><span class="kzr"><span class="kzv">${eur(L.kz66)}</span></span></div>
+   <div class="stx-zahl"><span class="zl">Kz 83 · Zahllast</span><span class="zv">${eur(L.kz83)}</span></div>
+   ${L.changes&&L.changes.length?`<div style="margin-top:14px"><h3 style="color:#B42318">⚠️ ${L.changes.length} Änderung(en) nach Abschluss</h3>
+     ${L.changes.map(c=>`<div class="stx-hist"><b>${fmtD(c.at.slice(0,10))}</b>${c.by?' · '+esc(c.by):''}<br>${esc(c.was)}</div>`).join('')}
+     <div style="font-size:12.5px;color:#B42318;margin-top:8px">→ Prüfen, ob eine berichtigte Anmeldung nötig ist.</div></div>`:''}
+   ${ROLE()==='chef'?`<button class="stx-btn auf" style="margin-top:12px" onclick="monatOeffnen('${ym}')">🔓 Monat wieder öffnen (Chef)</button>`:''}
+  </div>`:''}
+
+ <div class="stx-card">
+  <h3>1 · Vorprüfung</h3>
+  ${p.stop.length?p.stop.map(x=>`<div class="stx-row"><div class="stx-ic stop">⛔</div><div class="stx-tx"><b>${esc(x.t)}</b><span>${esc(x.s)}</span></div></div>`).join(''):''}
+  ${p.warn.map(x=>`<div class="stx-row"><div class="stx-ic warn">⚠️</div><div class="stx-tx"><b>${esc(x.t)}</b><span>${esc(x.s)}</span></div></div>`).join('')}
+  ${p.ok.map(x=>`<div class="stx-row"><div class="stx-ic ok">✓</div><div class="stx-tx"><b>${esc(x.t)}</b></div></div>`).join('')}
+  ${p.stop.length?`<div style="font-size:13px;color:#B42318;font-weight:600;margin-top:12px">⛔ ${p.stop.length} Fehler blockieren den Abschluss.</div>`:
+    `<div style="font-size:13px;color:#15803D;font-weight:600;margin-top:12px">✓ Keine blockierenden Fehler.</div>`}
+ </div>
+
+ <div class="stx-card">
+  <h3>2 · Kennzahlen für ELSTER</h3>
+  <div class="stx-kz"><span class="kzl"><b>Kz 81</b> Umsatz netto ${UST_SATZ}%</span>
+   <span class="kzr"><span class="kzv">${eur(z.netto19)}</span><button class="stx-copy" onclick="copyKz(${z.netto19})">Kopieren</button></span></div>
+  <div class="stx-kz"><span class="kzl">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;darauf Umsatzsteuer</span>
+   <span class="kzr"><span class="kzv">${eur(z.ust)}</span><button class="stx-copy" onclick="copyKz(${z.ust})">Kopieren</button></span></div>
+  <div class="stx-kz"><span class="kzl"><b>Kz 66</b> Vorsteuer</span>
+   <span class="kzr"><span class="kzv">${eur(z.vorsteuer)}</span><button class="stx-copy" onclick="copyKz(${z.vorsteuer})">Kopieren</button></span></div>
+  <div class="stx-zahl"><span class="zl"><b>Kz 83</b> · Zahllast an Finanzamt</span><span class="zv">${eur(z.zahllast)}</span></div>
+  <div style="font-size:12px;color:var(--muted);margin-top:10px">Werte in Mein ELSTER eintragen. ${z.zahllast<0?'Negativ = Erstattung (Guthaben).':''}</div>
+ </div>
+
+ <div class="stx-card">
+  <h3>3 · Abschluss</h3>
+  ${gesperrt?`<div style="font-size:13.5px;color:#15803D">✓ Dieser Monat ist abgeschlossen und gesperrt.</div>`:
+   kannAbschliessen?
+    `<div style="font-size:13px;color:var(--muted);margin-bottom:10px">Nach dem Eintragen in ELSTER hier den Monat sperren. Danach sind Änderungen nur mit Begründung möglich.</div>
+     <button class="stx-btn zu" onclick="monatAbschliessen('${ym}')">🔒 Monat abschließen & sperren</button>`:
+    `<div style="font-size:13px;color:#B42318;margin-bottom:10px">Erst die ⛔ Fehler oben beheben, dann kann der Monat abgeschlossen werden.</div>
+     <button class="stx-btn grau" disabled>🔒 Monat abschließen & sperren</button>`}
+ </div>
+
+ <button class="btn" style="width:100%" onclick="ustPDF('${ym}')">📄 UStVA als PDF speichern</button>`;
+}
+
+/* ---- PDF ---- */
+function ustPDF(ym){
+ const z=ustZahlen(ym);
+ const html=dHead('UMSATZSTEUER-VORANMELDUNG','',todayISO(),`<tr><td>Zeitraum:</td><td><b>${ym}</b></td></tr><tr><td>Verfahren:</td><td>Ist-Versteuerung</td></tr>`)+
+ `<table class="dtbl"><thead><tr><th>Kz</th><th>Position</th><th class="r">Betrag €</th></tr></thead><tbody>
+   <tr><td>81</td><td>Umsätze zum Steuersatz ${UST_SATZ}% (netto)</td><td class="r">${eur(z.netto19)}</td></tr>
+   <tr><td></td><td>&nbsp;&nbsp;darauf entfallende Umsatzsteuer</td><td class="r">${eur(z.ust)}</td></tr>
+   <tr><td>66</td><td>Vorsteuerbeträge</td><td class="r">${eur(z.vorsteuer)}</td></tr>
+  </tbody></table>
+  <div class="dsum"><table><tr class="grand"><td>Kz 83 · Zahllast / Erstattung</td><td class="r">${eur(z.zahllast)}</td></tr></table></div>
+  <p style="font-size:11px;color:#68718a;margin-top:16px">Ist-Versteuerung: Es zählen nur bezahlte Rechnungen (Zahlungseingang im Zeitraum). Erstellt am ${fmtD(todayISO())}. Ohne Gewähr — bitte vor Abgabe prüfen.</p>`+dFoot();
+ pdfFromHTML(html,'UStVA_'+ym+'.pdf');
+}
+</script>
+
+<style>
+/* ---- Foto-Bereiche am Fahrzeug ---- */
+.fotobereich{display:grid;grid-template-columns:repeat(auto-fill,minmax(96px,1fr));gap:9px;margin-top:8px}
+.fbtn{border:1.5px solid var(--line);background:var(--card);border-radius:11px;padding:12px 6px;font-size:12.5px;font-weight:600;cursor:pointer;text-align:center;transition:.12s}
+.fbtn:hover{border-color:#94a3b8}
+.fbtn .fem{font-size:22px;display:block;margin-bottom:4px}
+.fotogal{display:grid;grid-template-columns:repeat(auto-fill,minmax(110px,1fr));gap:8px;margin-top:10px}
+.fcard{position:relative;border-radius:10px;overflow:hidden;border:1px solid var(--line);aspect-ratio:4/3}
+.fcard img{width:100%;height:100%;object-fit:cover;display:block}
+.fcard .fx{position:absolute;top:4px;right:4px;background:rgba(0,0,0,.6);color:#fff;border:none;border-radius:6px;width:24px;height:24px;font-size:14px;cursor:pointer}
+.fcard .flabel{position:absolute;bottom:0;left:0;right:0;background:rgba(0,0,0,.62);color:#fff;font-size:10.5px;padding:3px 6px;font-weight:600}
+</style>
+<script>
+/* ============================================================
+   1) Kennzeichen-Konflikt: Fahrzeug existiert schon
+   2) Foto-Zuordnung am Fahrzeug (Motor, Bremse, Front …)
+   ============================================================ */
+
+/* ---- 1) Plate-Konflikt ---- */
+function plateKonflikt(vorhanden, neuF, wahl){
+ const info=[vorhanden.brand,vorhanden.model].filter(Boolean).join(' ');
+ const owner=vorhanden.customerId?(S.customers.find(c=>c.id===vorhanden.customerId)||{}).name:'';
+ openModal('Fahrzeug existiert bereits',
+  `<div style="text-align:center;padding:6px 0 14px">
+     <div style="font-size:34px">🚗</div>
+     <div style="font-size:20px;font-weight:800;margin-top:6px">${esc(vorhanden.plate)}</div>
+     <div style="font-size:13.5px;color:var(--muted);margin-top:3px">${esc(info||'—')}${owner?' · '+esc(owner):''}</div>
+   </div>
+   <p style="font-size:13.5px;color:var(--muted);line-height:1.5;margin-bottom:4px">Dieses Kennzeichen ist schon angelegt. Was möchtest du tun?</p>`,
+  `<div style="display:flex;flex-direction:column;gap:8px;width:100%">
+    <button class="abtn blue" style="background:#0f172a" onclick="closeModal();go('fahrzeuge');editFzg('${vorhanden.id}')">Vorhandenes Fahrzeug öffnen</button>
+    <button class="abtn white" onclick='plateTrotzdemNeu()'>Trotzdem neu anlegen</button>
+    <button class="abtn white" onclick="closeModal()">Abbrechen</button>
+   </div>`);
+}
+function plateTrotzdemNeu(){
+ const j=KIDATA||{}; const f=j.fahrzeug||{};
+ const neu={id:uid(), plate:(f.plate||'').toUpperCase().trim(), brand:(f.brand||'').trim(),
+   model:(f.model||'').trim(), vin:(f.vin||'').trim(), km:(f.km||'').trim(),
+   hsn:(f.hsn||'').trim(), tsn:(f.tsn||'').trim(), ez:(f.ez||'').trim(),
+   fuel:(f.fuel||'').trim(), tuev:(f.tuev||'').trim(),
+   customerId:(KIDATA._kundeId||''), kat:'fahrzeug'};
+ S.vehicles.unshift(neu); save();
+ closeModal(); go('fahrzeuge'); toast('Fahrzeug angelegt ✓'); editFzg(neu.id);
+}
+
+/* ---- 2) Foto-Bereiche ---- */
+const FOTO_BEREICHE = [
+ ['front','🚗','Front'],['heck','🔙','Heck'],['links','⬅️','Links'],['rechts','➡️','Rechts'],
+ ['motor','🔧','Motor'],['getriebe','⚙️','Getriebe'],['bremse','🛑','Bremse'],
+ ['innen','💺','Innen'],['reifen','🛞','Reifen'],['schaden','⚠️','Schaden'],
+ ['unterboden','🔩','Unterboden'],['sonstige','📷','Sonstige']
+];
+function fotoBereichName(k){ const b=FOTO_BEREICHE.find(x=>x[0]===k); return b?b[2]:'Foto'; }
+
+/* Foto zu einem Fahrzeug hinzufügen: erst Bild wählen, dann Bereich */
+let FOTO_TMP=null;
+function fzgFotoPick(vid, inp){
+ const f=inp.files&&inp.files[0]; if(!f){return;}
+ if(!f.type.startsWith('image')){ alert('Nur Bilder'); inp.value=''; return; }
+ const r=new FileReader();
+ r.onload=()=>{ const img=new Image(); img.onload=()=>{
+   const mx=1400, sc=Math.min(1,mx/Math.max(img.width,img.height));
+   const c=document.createElement('canvas'); c.width=Math.round(img.width*sc); c.height=Math.round(img.height*sc);
+   c.getContext('2d').drawImage(img,0,0,c.width,c.height);
+   FOTO_TMP={vid, data:c.toDataURL('image/jpeg',0.8)};
+   fzgFotoBereichFrage();
+ }; img.src=r.result; };
+ r.readAsDataURL(f); inp.value='';
+}
+function fzgFotoBereichFrage(){
+ openModal('Wohin gehört das Foto?',
+  `<div class="fotobereich">
+    ${FOTO_BEREICHE.map(([k,em,n])=>`<button class="fbtn" onclick="fzgFotoSave('${k}')"><span class="fem">${em}</span>${n}</button>`).join('')}
+   </div>`,
+  `<button class="abtn white" onclick="FOTO_TMP=null;closeModal()">Abbrechen</button>`);
+}
+function fzgFotoSave(bereich){
+ if(!FOTO_TMP) return;
+ const v=S.vehicles.find(x=>x.id===FOTO_TMP.vid); if(!v){ FOTO_TMP=null; closeModal(); return; }
+ v.fotos=v.fotos||[];
+ v.fotos.unshift({id:uid(), bereich, data:FOTO_TMP.data, date:todayISO()});
+ FOTO_TMP=null; save(); closeModal(); toast('Foto gespeichert ✓');
+ if(PAGE==='fahrzeuge') editFzg(v.id);
+}
+function fzgFotoDel(vid, fid){
+ const v=S.vehicles.find(x=>x.id===vid); if(!v||!v.fotos) return;
+ if(!confirm('Foto löschen?')) return;
+ v.fotos=v.fotos.filter(f=>f.id!==fid); save();
+ if(PAGE==='fahrzeuge') editFzg(v.id);
+}
+/* Galerie-Block für das Fahrzeug-Formular */
+function fzgFotoBlock(vid){
+ const v=S.vehicles.find(x=>x.id===vid); if(!v) return '';
+ const fotos=v.fotos||[];
+ return `<div class="fld" style="margin-top:10px">
+   <label>Fotos (${fotos.length})</label>
+   <label class="abtn white filebtn" style="display:inline-flex;width:auto">📷 Foto hinzufügen
+     <input type="file" accept="image/*" onchange="fzgFotoPick('${vid}',this)"></label>
+   ${fotos.length?`<div class="fotogal">
+     ${fotos.map(f=>`<div class="fcard">
+       <img src="${f.data}" alt="">
+       <div class="flabel">${fotoBereichName(f.bereich)}</div>
+       <button class="fx" onclick="fzgFotoDel('${vid}','${f.id}')">✕</button>
+      </div>`).join('')}
+    </div>`:''}
+ </div>`;
 }
 </script>
 
