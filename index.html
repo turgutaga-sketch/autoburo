@@ -5292,7 +5292,8 @@ async function tenantOpen(){
   rows = await sbData('tenants',{method:'POST',body:JSON.stringify([{owner_id:ACC.uid,data:null,device:accDevice()}])});
   const id=rows[0].id;
   await sbData('tenant_meta',{method:'POST',body:JSON.stringify([{
-    tenant_id:id, owner_email:ACC.email, workshop_name:(S.settings&&S.settings.name)||'', plan:'trial',
+    tenant_id:id, owner_email:ACC.email, workshop_name:(S.settings&&S.settings.name)||'',
+    plan:(window.trialNeuesEnde?'trial:'+trialNeuesEnde():'trial'),
     last_login:new Date().toISOString(), login_count:1
   }])}).catch(()=>{});
   ACC.tenantId=id; accSave();
@@ -5320,6 +5321,7 @@ async function tenantOpen(){
  await sbData('tenant_meta?tenant_id=eq.'+ACC.tenantId,{method:'PATCH',body:JSON.stringify({
    last_login:new Date().toISOString(), owner_email:ACC.email
  })}).catch(()=>{});
+ if(window.trialLaden) await trialLaden();
 }
 function countOf(st){
  if(!st) return 0;
@@ -6435,6 +6437,279 @@ function fzgFotoBlock(vid){
     </div>`:''}
  </div>`;
 }
+</script>
+
+<style>
+/* ---- Testphase ---- */
+#trialbar{position:sticky;top:0;z-index:80;background:#FFFBEB;border-bottom:1px solid #FDE68A;color:#92700c;
+  font-size:13.5px;font-weight:600;padding:9px 16px;display:flex;align-items:center;gap:10px;justify-content:center;flex-wrap:wrap}
+#trialbar.eng{background:#FEF3F2;border-color:#f3c6c2;color:#B42318}
+#trialbar a{color:inherit;text-decoration:underline;font-weight:700}
+#trialend{position:fixed;inset:0;z-index:9999;background:#1F2A4D;color:#fff;display:flex;align-items:center;justify-content:center;padding:24px}
+#trialend .te{max-width:420px;text-align:center}
+#trialend .te .ic{font-size:44px;margin-bottom:14px}
+#trialend .te h2{font-size:24px;font-weight:800;margin-bottom:10px;font-family:inherit}
+#trialend .te p{font-size:15px;line-height:1.6;color:rgba(255,255,255,.8);margin-bottom:22px}
+#trialend .te a.b{display:block;background:#C9A227;color:#1F2A4D;font-weight:800;font-size:16px;
+  padding:15px;border-radius:12px;text-decoration:none;margin-bottom:10px}
+#trialend .te a.w{display:block;background:transparent;color:#fff;border:1.5px solid rgba(255,255,255,.3);
+  font-weight:600;font-size:14.5px;padding:13px;border-radius:12px;text-decoration:none}
+#trialend .te small{display:block;margin-top:18px;font-size:12.5px;color:rgba(255,255,255,.5)}
+</style>
+<script>
+/* ============================================================
+   TESTPHASE — 14 Tage, danach gesperrt
+   Speicherung ohne Schema-Änderung im vorhandenen Feld tenant_meta.plan:
+     "trial:YYYY-MM-DD"  → Testphase, Enddatum
+     "aktiv" / alles andere / leer → unbegrenzt (Bestandskonten bleiben offen)
+   ============================================================ */
+const TRIAL_TAGE = 14;
+const TRIAL_WA   = 'https://wa.me/491733826092?text=' +
+  encodeURIComponent('Hallo, ich möchte AutoBüro weiter nutzen. Bitte schickt mir die Rechnung.');
+let TRIAL = null;   /* {ende:'YYYY-MM-DD', tage:n, abgelaufen:bool} */
+
+function trialParse(plan){
+  const p = String(plan||'').trim();
+  if(!p.toLowerCase().startsWith('trial:')) return null;   /* kein Datum → unbegrenzt */
+  const ende = p.slice(6).trim();
+  if(!/^\d{4}-\d{2}-\d{2}$/.test(ende)) return null;
+  const heute = todayISO();
+  const tage = Math.round((new Date(ende+'T00:00:00') - new Date(heute+'T00:00:00'))/86400000);
+  return {ende, tage:Math.max(0,tage), abgelaufen: tage < 0};
+}
+
+function trialNeuesEnde(){
+  const d = new Date(); d.setDate(d.getDate()+TRIAL_TAGE);
+  return d.toISOString().slice(0,10);
+}
+
+/* Nach dem Laden des Betriebs: Status holen */
+async function trialLaden(){
+  if(!ACC || !ACC.tenantId) return;
+  try{
+    const rows = await sbData('tenant_meta?tenant_id=eq.'+ACC.tenantId+'&select=plan&limit=1',{method:'GET'});
+    const plan = rows && rows[0] ? rows[0].plan : '';
+    TRIAL = trialParse(plan);
+  }catch(e){ TRIAL = null; }          /* Fehler → nicht sperren */
+  trialAnzeigen();
+}
+
+function trialAnzeigen(){
+  document.getElementById('trialbar')?.remove();
+  if(!TRIAL) return;
+  if(TRIAL.abgelaufen){ trialSperre(); return; }
+  const bar=document.createElement('div');
+  bar.id='trialbar';
+  if(TRIAL.tage<=3) bar.className='eng';
+  bar.innerHTML = TRIAL.tage===0
+    ? `⏳ Testphase endet heute — <a href="${TRIAL_WA}" target="_blank" rel="noopener">jetzt freischalten</a>`
+    : `⏳ Noch <b>${TRIAL.tage}</b> Tage kostenlos testen — <a href="${TRIAL_WA}" target="_blank" rel="noopener">jetzt freischalten</a>`;
+  document.body.insertBefore(bar, document.body.firstChild);
+}
+
+function trialSperre(){
+  if(document.getElementById('trialend')) return;
+  const d=document.createElement('div'); d.id='trialend';
+  d.innerHTML=`<div class="te">
+    <div class="ic">🔒</div>
+    <h2>Testphase beendet</h2>
+    <p>Deine 14 Tage sind vorbei. Deine Daten sind vollständig gespeichert und sofort wieder da,
+       sobald dein Zugang freigeschaltet ist.</p>
+    <a class="b" href="${TRIAL_WA}" target="_blank" rel="noopener">Jetzt freischalten — 19 € / Monat</a>
+    <a class="w" href="#" onclick="accLogout();return false">Abmelden</a>
+    <small>Nichts geht verloren. Wir schalten dich frei, sobald die Rechnung beglichen ist.</small>
+  </div>`;
+  document.body.appendChild(d);
+}
+
+/* Sicherheitsnetz: Sperre nach jedem Render prüfen */
+(function(){
+  const origRender = window.render;
+  if(!origRender) return;
+  window.render = function(){
+    origRender.apply(this, arguments);
+    if(TRIAL && TRIAL.abgelaufen) trialSperre();
+  };
+})();
+</script>
+
+<style>
+.dtv-box{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:16px;margin-bottom:14px}
+.dtv-box h3{font-size:13px;letter-spacing:1px;text-transform:uppercase;color:var(--muted);margin:0 0 12px}
+.dtv-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px}
+.dtv-f label{display:block;font-size:11.5px;font-weight:600;color:var(--muted);margin-bottom:3px}
+.dtv-f input,.dtv-f select{width:100%;padding:8px 10px;border:1px solid var(--line);border-radius:9px;
+  font-size:14px;background:var(--card);color:var(--fg);font-family:inherit}
+.dtv-hint{font-size:12px;color:var(--muted);line-height:1.5;margin-top:10px}
+.dtv-warn{background:#FFFBEB;border:1px solid #FDE68A;border-radius:10px;padding:11px 13px;
+  font-size:12.5px;color:#92700c;line-height:1.5;margin-top:12px}
+.dtv-btn{width:100%;border:none;border-radius:12px;padding:14px;font-size:15px;font-weight:700;
+  cursor:pointer;background:#1F2A4D;color:#fff;margin-top:12px}
+</style>
+<script>
+/* ============================================================
+   DATEV-Export (EXTF Buchungsstapel, Format-Version 700)
+   Erzeugt eine CSV, die der Steuerberater in DATEV / Lexware /
+   Agenda / Addison importieren kann.
+   ============================================================ */
+
+/* Standard-Konten SKR03 / SKR04 */
+const DATEV_STD = {
+  SKR03:{ erloes19:'8400', erloes7:'8300', kasse:'1000', bank:'1200',
+          cat:{ catMaterial:'3400', catMiete:'4210', catVersicherung:'4360',
+                catLohn:'4100', catWerkzeug:'4985', catBuero:'4930',
+                catKraftstoff:'4530', catSonst:'4900' } },
+  SKR04:{ erloes19:'4400', erloes7:'4300', kasse:'1600', bank:'1800',
+          cat:{ catMaterial:'5400', catMiete:'6310', catVersicherung:'6400',
+                catLohn:'6000', catWerkzeug:'6260', catBuero:'6815',
+                catKraftstoff:'6530', catSonst:'6300' } }
+};
+
+function dtvCfg(){
+  const c = S.settings._datev || {};
+  const skr = c.skr || 'SKR03';
+  const std = DATEV_STD[skr];
+  return {
+    skr,
+    berater:  c.berater  || '',
+    mandant:  c.mandant  || '',
+    erloes19: c.erloes19 || std.erloes19,
+    kasse:    c.kasse    || std.kasse,
+    bank:     c.bank     || std.bank,
+    cat:      Object.assign({}, std.cat, c.cat||{})
+  };
+}
+function dtvSet(feld, wert){
+  S.settings._datev = S.settings._datev || {};
+  if(feld==='skr'){ S.settings._datev = {skr:wert}; }   /* SKR-Wechsel → Standardkonten neu */
+  else S.settings._datev[feld] = wert.trim();
+  save(); render();
+}
+
+/* ---- Hilfen ---- */
+const dtvNum = v => (Math.round(Math.abs(num(v))*100)/100).toFixed(2).replace('.',',');
+const dtvTxt = s => '"' + String(s||'').replace(/"/g,'').replace(/;/g,' ').slice(0,60) + '"';
+const dtvDat = iso => { const p=String(iso||'').split('-'); return p.length===3 ? p[2]+p[1] : ''; };
+
+/* Windows-1252 (ANSI) — DATEV erwartet kein UTF-8 */
+function dtvAnsi(str){
+  const out=[];
+  for(let i=0;i<str.length;i++){
+    const c=str.charCodeAt(i);
+    if(c===0x20AC) out.push(0x80);              /* € */
+    else if(c<256) out.push(c);
+    else out.push(63);                           /* ? */
+  }
+  return new Uint8Array(out);
+}
+
+/* ---- Buchungszeilen ---- */
+function dtvZeilen(ym){
+  const c = dtvCfg();
+  const z = [];
+  const gk = m => (m==='bar' ? c.kasse : c.bank);
+
+  /* Einnahmen: bezahlte Rechnungen (Ist-Versteuerung) */
+  ustEinnahmen(ym).forEach(i=>{
+    const d = S.docs.find(x=>x.id===i.invoiceId) || {};
+    z.push([
+      dtvNum(i.gross), 'S', '"EUR"', '', '', '',
+      gk(i.method), c.erloes19, '',
+      dtvDat(i.date),
+      dtvTxt((d.no||'').replace(/[^0-9A-Za-z\-]/g,'')),
+      '', '',
+      dtvTxt(d.customerName || i.desc || 'Erlös')
+    ].join(';'));
+  });
+
+  /* Ausgaben */
+  ustAusgaben(ym).forEach(e=>{
+    const konto = c.cat[e.cat] || c.cat.catSonst;
+    z.push([
+      dtvNum(e.gross), 'S', '"EUR"', '', '', '',
+      konto, gk(e.method), '',
+      dtvDat(e.date),
+      '', '', '',
+      dtvTxt(e.desc || 'Aufwand')
+    ].join(';'));
+  });
+
+  return z;
+}
+
+/* ---- Datei bauen ---- */
+function dtvExport(ym){
+  const c = dtvCfg();
+  if(!c.berater || !c.mandant){
+    alert('Bitte zuerst Berater- und Mandantennummer eintragen.\n\nDiese Nummern bekommst du von deinem Steuerberater.');
+    return;
+  }
+  const zeilen = dtvZeilen(ym);
+  if(!zeilen.length){ toast('Keine Buchungen in '+ym); return; }
+
+  const j = ym.slice(0,4), m = ym.slice(5,7);
+  const letzter = new Date(+j, +m, 0).getDate();
+  const stamp = new Date().toISOString().replace(/[-:T]/g,'').slice(0,14) + '000';
+
+  const kopf = [
+    '"EXTF"','700','21','"Buchungsstapel"','13', stamp, '', '"AutoBuero"','""','""',
+    c.berater, c.mandant, j+'0101', '4', j+m+'01', j+m+String(letzter).padStart(2,'0'),
+    '"'+ym+'"','""','1','0','0','"EUR"','','""','','','""','""','""','""','""'
+  ].join(';');
+
+  const spalten = ['Umsatz (ohne Soll/Haben-Kz)','Soll/Haben-Kennzeichen','WKZ Umsatz','Kurs',
+    'Basis-Umsatz','WKZ Basis-Umsatz','Konto','Gegenkonto (ohne BU-Schlüssel)','BU-Schlüssel',
+    'Belegdatum','Belegfeld 1','Belegfeld 2','Skonto','Buchungstext'].join(';');
+
+  const inhalt = [kopf, spalten].concat(zeilen).join('\r\n') + '\r\n';
+  const blob = new Blob([dtvAnsi(inhalt)], {type:'text/csv'});
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'EXTF_Buchungsstapel_' + ym.replace('-','_') + '.csv';
+  a.click();
+  setTimeout(()=>URL.revokeObjectURL(a.href), 4000);
+  toast(zeilen.length + ' Buchungen exportiert ✓');
+}
+
+/* ---- Block für die Steuer-Seite ---- */
+function dtvBlock(ym){
+  const c = dtvCfg();
+  const anz = dtvZeilen(ym).length;
+  const f = (lab,feld,val,ph) => `<div class="dtv-f"><label>${lab}</label>
+    <input value="${esc(val||'')}" placeholder="${ph||''}" onchange="dtvSet('${feld}',this.value)"></div>`;
+  return `<div class="dtv-box">
+    <h3>4 · DATEV-Export für den Steuerberater</h3>
+    <div class="dtv-grid">
+      <div class="dtv-f"><label>Kontenrahmen</label>
+        <select onchange="dtvSet('skr',this.value)">
+          <option value="SKR03" ${c.skr==='SKR03'?'selected':''}>SKR03</option>
+          <option value="SKR04" ${c.skr==='SKR04'?'selected':''}>SKR04</option>
+        </select></div>
+      ${f('Beraternummer','berater',c.berater,'z. B. 1234567')}
+      ${f('Mandantennummer','mandant',c.mandant,'z. B. 54321')}
+    </div>
+    <div class="dtv-grid" style="margin-top:10px">
+      ${f('Erlöse 19 %','erloes19',c.erloes19)}
+      ${f('Kasse','kasse',c.kasse)}
+      ${f('Bank','bank',c.bank)}
+    </div>
+    <div class="dtv-hint">${anz} Buchung(en) im Zeitraum ${ym}. Die Datei kann in DATEV, Lexware, Agenda und Addison eingelesen werden.</div>
+    <div class="dtv-warn">⚠️ Vor dem ersten echten Export: Datei einmal von deinem Steuerberater testen lassen.
+      Berater- und Mandantennummer sowie die Konten bekommst du von ihm.</div>
+    <button class="dtv-btn" onclick="dtvExport('${ym}')">⬇ DATEV-Datei herunterladen</button>
+  </div>`;
+}
+
+/* An die Steuer-Seite anhängen */
+(function(){
+  const orig = window.vSteuer;
+  if(!orig) return;
+  window.vSteuer = function(){
+    const html = orig.apply(this, arguments);
+    const ym = steuerMonat();
+    return html + dtvBlock(ym);
+  };
+})();
 </script>
 
 </body>
