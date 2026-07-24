@@ -6712,5 +6712,328 @@ function dtvBlock(ym){
 })();
 </script>
 
+<script>
+/* ============================================================
+   AutoBüro · Zusatz-Block
+   1) Tages-Log (wer hat was gemacht)
+   2) Annahme/Übergabe: Kunde + Fahrzeug wählen statt tippen
+   3) Foto-Bereiche "Annahme" / "Übergabe" + kleinere Bilder
+   4) Neue Seite: Tagesbericht (Tag wählen, PDF, Druck)
+   Additiv - nichts Bestehendes wird gelöscht.
+   ============================================================ */
+(function(){
+if(window.__TBLOCK__)return; window.__TBLOCK__=1;
+
+/* ---------- 0) Log ---------- */
+if(!Array.isArray(S.log)) S.log=[];
+function who(){ try{ return (AUTH&&AUTH.name)||'—'; }catch(e){ return '—'; } }
+window.logAdd=function(art,text,ref){
+ try{
+  S.log.unshift({id:uid(),date:todayISO(),time:new Date().toTimeString().slice(0,5),
+   art:String(art||''),text:String(text||''),ref:ref||'',user:who()});
+  if(S.log.length>4000)S.log.length=4000;
+  save();
+ }catch(e){}
+};
+
+/* ---------- 1) Zeitstempel aus der uid() ---------- */
+function idTime(id){
+ if(typeof id!=='string'||id.length<13)return null;
+ const ms=parseInt(id.slice(0,8),36);
+ if(!ms||ms<1577836800000||ms>Date.now()+86400000)return null;
+ return new Date(ms);
+}
+function idDay(id){const d=idTime(id);if(!d)return null;
+ return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');}
+function idHM(id){const d=idTime(id);return d?String(d.getHours()).padStart(2,'0')+':'+String(d.getMinutes()).padStart(2,'0'):'';}
+
+/* ---------- 2) Log-Haken auf bestehende Speicher-Funktionen ---------- */
+function hook(fnName,collFn,mk){
+ const orig=window[fnName]; if(typeof orig!=='function')return;
+ window[fnName]=function(){
+  const coll=collFn.apply(null,arguments);
+  const arr0=(coll&&S[coll])||[];
+  const before=new Set(arr0.map(x=>x.id));
+  const out=orig.apply(this,arguments);
+  try{
+   const arr=(coll&&S[coll])||[];
+   const rec=arr.find(x=>!before.has(x.id));
+   if(rec){ const m=mk(rec); if(m&&m.art) logAdd(m.art,m.text,rec.id); }
+  }catch(e){}
+  return out;
+ };
+}
+const DOCART={RE:'Rechnung',AN:'Angebot',AU:'Auftrag',GS:'Gutschrift',MA:'Mahnung',FA:'Annahme',UP:'Übergabe'};
+const zart=m=>m==='bar'?'Bar':m==='karte'?'Karte':'Bank';
+
+hook('saveKunde',()=>'customers',c=>({art:'Neuer Kunde',text:c.name||''}));
+hook('saveFzg',()=>'vehicles',v=>({art:'Neues Fahrzeug',text:[v.plate,v.brand,v.model].filter(Boolean).join(' ')}));
+hook('saveMoney',coll=>coll,x=>({art:(S.incomes||[]).indexOf(x)>=0?'Einnahme':'Ausgabe',
+ text:(x.desc||'')+' · '+zart(x.method)}));
+hook('saveDoc',()=>'docs',d=>({art:DOCART[d.type]||'Beleg',text:(d.no||'')+' · '+(d.customerName||'')}));
+hook('neuProtokoll',()=>'docs',d=>({art:DOCART[d.type]||'Protokoll',
+ text:(d.no||'')+(d.customerName?' · '+d.customerName:'')+(d.vehiclePlate?' · '+d.vehiclePlate:'')}));
+
+/* ---------- 3) Foto-Bereiche + sparsamere Bilder ---------- */
+try{
+ if(Array.isArray(FOTO_BEREICHE)&&!FOTO_BEREICHE.some(x=>x[0]==='annahme'))
+  FOTO_BEREICHE.push(['annahme','🚗','Annahme'],['uebergabe','🔑','Übergabe']);
+}catch(e){}
+
+let PROT_FOTO=null;
+window.fzgFotoPick=function(vid,inp){
+ const f=inp.files&&inp.files[0]; if(!f)return;
+ if(!f.type.startsWith('image')){alert('Nur Bilder');inp.value='';return;}
+ const r=new FileReader();
+ r.onload=()=>{const img=new Image();img.onload=()=>{
+   const mx=1000,sc=Math.min(1,mx/Math.max(img.width,img.height));
+   const c=document.createElement('canvas');
+   c.width=Math.round(img.width*sc);c.height=Math.round(img.height*sc);
+   c.getContext('2d').drawImage(img,0,0,c.width,c.height);
+   FOTO_TMP={vid,data:c.toDataURL('image/jpeg',0.6)};
+   if(PROT_FOTO){const p=PROT_FOTO;PROT_FOTO=null;fzgFotoSave(p.tag);closeModal();protokollForm(p.docId);}
+   else fzgFotoBereichFrage();
+ };img.src=r.result;};
+ r.readAsDataURL(f);inp.value='';
+};
+
+/* ---------- 4) Annahme / Übergabe: Kunde + Fahrzeug wählen ---------- */
+function gEl(id){return document.getElementById(id);}
+function protCollect(d){
+ const v=x=>{const e=gEl(x);return e?e.value.trim():'';};
+ if(gEl('p_cn'))d.customerName=v('p_cn');
+ if(gEl('p_ca'))d.customerAddress=v('p_ca');
+ if(gEl('p_pl'))d.vehiclePlate=v('p_pl');
+ if(gEl('p_km'))d.km=v('p_km');
+ if(gEl('p_rm'))d.remark=v('p_rm');
+ if(d.type==='FA'){ if(gEl('p_fu'))d.fuel=num(v('p_fu')); if(gEl('p_dm'))d.damage=v('p_dm'); }
+ else { if(gEl('p_on'))d.origNo=v('p_on'); if(gEl('p_ns'))d.nextService=v('p_ns'); if(gEl('p_hu'))d.hu=v('p_hu'); }
+}
+const cAddr=c=>c?(c.address||[c.street,c.city].filter(Boolean).join('\n')||''):'';
+
+window.protPickKunde=function(id,cid){
+ const d=S.docs.find(x=>x.id===id); if(!d)return;
+ protCollect(d);
+ const c=S.customers.find(x=>x.id===cid);
+ d.customerId=cid||'';
+ if(c){ d.customerName=c.name||''; d.customerAddress=cAddr(c); }
+ if(d.vehicleId&&cid){
+  const v=S.vehicles.find(x=>x.id===d.vehicleId);
+  if(v&&v.customerId&&v.customerId!==cid){ d.vehicleId=''; d.vehiclePlate=''; }
+ }
+ save(); closeModal(); protokollForm(id);
+};
+window.protPickFzg=function(id,vid){
+ const d=S.docs.find(x=>x.id===id); if(!d)return;
+ protCollect(d);
+ const v=S.vehicles.find(x=>x.id===vid);
+ d.vehicleId=vid||'';
+ if(v){
+  d.vehiclePlate=v.plate||'';
+  if(!d.km&&v.km)d.km=String(v.km);
+  if(!d.customerId&&v.customerId){
+   const c=S.customers.find(x=>x.id===v.customerId);
+   if(c){ d.customerId=c.id; d.customerName=c.name||''; d.customerAddress=cAddr(c); }
+  }
+ }
+ save(); closeModal(); protokollForm(id);
+};
+window.protFoto=function(docId,vid,inp){
+ const d=S.docs.find(x=>x.id===docId);
+ if(d){ protCollect(d); save(); }
+ PROT_FOTO={docId:docId,tag:(d&&d.type==='FA')?'annahme':'uebergabe'};
+ fzgFotoPick(vid,inp);
+};
+window.protFotoDel=function(docId,vid,fid){
+ const v=S.vehicles.find(x=>x.id===vid); if(!v||!v.fotos)return;
+ if(!confirm('Foto löschen?'))return;
+ v.fotos=v.fotos.filter(f=>f.id!==fid); save(); closeModal(); protokollForm(docId);
+};
+
+window.protokollForm=function(id){
+ const d=S.docs.find(x=>x.id===id); if(!d)return;
+ const isFA=d.type==='FA';
+ const tag=isFA?'annahme':'uebergabe';
+ const veh=d.vehicleId?S.vehicles.find(v=>v.id===d.vehicleId):null;
+ const fotos=veh?(veh.fotos||[]).filter(f=>f.bereich===tag):[];
+ const custs=S.customers.slice().sort((a,b)=>String(a.name||'').localeCompare(String(b.name||'')));
+ const vehs=S.vehicles.filter(v=>!d.customerId||v.customerId===d.customerId||v.id===d.vehicleId);
+ const cOpt=`<option value="">— Kunde wählen —</option>`+custs.map(c=>
+   `<option value="${c.id}" ${d.customerId===c.id?'selected':''}>${esc(c.name||'')}</option>`).join('');
+ const vOpt=`<option value="">— Fahrzeug wählen —</option>`+vehs.map(v=>
+   `<option value="${v.id}" ${d.vehicleId===v.id?'selected':''}>${esc([v.plate,v.brand,v.model].filter(Boolean).join(' · '))}</option>`).join('');
+
+ openModal(isFA?'Fahrzeugannahme':'Übergabeprotokoll',
+ `<div class="frow2">
+   <div class="fld"><label>Kunde auswählen</label><select onchange="protPickKunde('${id}',this.value)">${cOpt}</select></div>
+   <div class="fld"><label>Fahrzeug auswählen</label><select onchange="protPickFzg('${id}',this.value)">${vOpt}</select></div>
+  </div>
+  <div class="frow2">
+   <div class="fld"><label>Kunde</label><input id="p_cn" value="${esc(d.customerName||'')}"></div>
+   <div class="fld"><label>Kennzeichen</label><input id="p_pl" value="${esc(d.vehiclePlate||'')}"></div>
+  </div>
+  <div class="fld"><label>Adresse</label><textarea id="p_ca" rows="2">${esc(d.customerAddress||'')}</textarea></div>
+  <div class="frow2">
+   <div class="fld"><label>Kilometerstand</label><input id="p_km" inputmode="numeric" value="${esc(d.km||'')}" placeholder="z. B. 142000"></div>
+   ${isFA?`<div class="fld"><label>Tankstand</label><select id="p_fu">
+     ${['leer','¼','½','¾','voll'].map((x,i)=>`<option value="${i}" ${num(d.fuel)===i?'selected':''}>${x}</option>`).join('')}
+   </select></div>`:`<div class="fld"><label>Auftrag/Rechnung Nr.</label><input id="p_on" value="${esc(d.origNo||'')}" placeholder="RE-2026-…"></div>`}
+  </div>
+  ${isFA?`<div class="fld"><label>Vorhandene Schäden / Auffälligkeiten</label><textarea id="p_dm" rows="3" placeholder="Kratzer Tür links, Delle Heckklappe …">${esc(d.damage||'')}</textarea></div>`:''}
+  <div class="fld"><label>${isFA?'Auftrag / Kundenangaben':'Ausgeführte Arbeiten'}</label><textarea id="p_rm" rows="3">${esc(d.remark||'')}</textarea></div>
+  ${!isFA?`<div class="frow2">
+    <div class="fld"><label>Nächster Service bei (km)</label><input id="p_ns" value="${esc(d.nextService||'')}"></div>
+    <div class="fld"><label>HU/AU fällig</label><input id="p_hu" value="${esc(d.hu||'')}" placeholder="z. B. 03/2028"></div>
+   </div>`:''}
+  ${d.vehicleId?`<div class="fld" style="margin-top:10px">
+    <label>Fotos · ${isFA?'Annahme':'Übergabe'} (${fotos.length})</label>
+    <label class="abtn white filebtn" style="display:inline-flex;width:auto">📷 Foto aufnehmen
+      <input type="file" accept="image/*" capture="environment" onchange="protFoto('${id}','${d.vehicleId}',this)"></label>
+    ${fotos.length?`<div class="fotogal">${fotos.map(f=>`<div class="fcard">
+       <img src="${f.data}" alt="">
+       <div class="flabel">${fmtD(f.date)}</div>
+       <button class="fx" onclick="protFotoDel('${id}','${d.vehicleId}','${f.id}')">✕</button>
+      </div>`).join('')}</div>`:''}
+   </div>`:`<div class="fld" style="margin-top:10px"><label>Fotos</label>
+    <div style="font-size:13px;color:var(--muted)">Erst Fahrzeug auswählen – danach können Fotos aufgenommen werden.</div></div>`}`,
+ `<button class="btn" onclick="closeModal()">${t('abbrechen')}</button>
+  <button class="btn p" onclick="protokollSave('${id}')">${t('speichern')}</button>`);
+};
+window.protokollSave=function(id){
+ const d=S.docs.find(x=>x.id===id); if(!d)return;
+ protCollect(d);
+ save(); closeModal(); render(); toast(t('gespeichert'));
+};
+
+/* ---------- 5) Tagesbericht ---------- */
+try{
+ const NAMEN={de:'Tagesbericht',tr:'Günlük Rapor',en:'Daily Report',ru:'Отчёт за день',uk:'Звіт за день',ar:'تقرير اليوم',es:'Informe diario'};
+ Object.keys(I18N).forEach(l=>{ if(!I18N[l].tagesbericht) I18N[l].tagesbericht=NAMEN[l]||NAMEN.de; });
+ if(!NAV.some(x=>x[0]==='tagesbericht')){
+  const i=NAV.findIndex(x=>x[0]==='termine');
+  NAV.splice(i>=0?i+1:NAV.length,0,['tagesbericht','doc']);
+ }
+}catch(e){}
+
+let TB_DATE=todayISO();
+window.tbSet=function(v){ TB_DATE=v||todayISO(); render(); };
+window.tbShift=function(n){
+ const d=new Date(TB_DATE+'T12:00:00'); d.setDate(d.getDate()+n);
+ TB_DATE=d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
+ render();
+};
+function userMap(){ const m={}; (S.log||[]).forEach(l=>{ if(l.ref&&!m[l.ref])m[l.ref]=l.user; }); return m; }
+function logTime(rec){ const l=(S.log||[]).find(x=>x.ref===rec.id); return l?l.time:(idHM(rec.id)||''); }
+
+function tbItems(day){
+ const um=userMap(), out=[];
+ (S.docs||[]).filter(d=>d.date===day).forEach(d=>out.push({
+  time:((d.type==='FA'||d.type==='UP')&&d.time)?d.time:logTime(d),
+  art:DOCART[d.type]||'Beleg',
+  text:[(d.no||''),(d.customerName||''),(d.vehiclePlate||'')].filter(Boolean).join(' · '),
+  amt:['RE','AN','AU','GS'].indexOf(d.type)>=0?docGross(d):null,
+  user:um[d.id]||'—', cls:'doc'}));
+ (S.incomes||[]).filter(x=>x.date===day).forEach(x=>out.push({
+  time:logTime(x),art:'Einnahme',text:(x.desc||'')+' · '+zart(x.method),
+  amt:num(x.gross),user:um[x.id]||'—',cls:'in'}));
+ (S.expenses||[]).filter(x=>x.date===day).forEach(x=>out.push({
+  time:logTime(x),art:'Ausgabe',text:(x.desc||'')+' · '+zart(x.method),
+  amt:-num(x.gross),user:um[x.id]||'—',cls:'out'}));
+ (S.customers||[]).filter(c=>idDay(c.id)===day).forEach(c=>out.push({
+  time:idHM(c.id),art:'Neuer Kunde',text:c.name||'',amt:null,user:um[c.id]||'—',cls:'new'}));
+ (S.vehicles||[]).filter(v=>idDay(v.id)===day).forEach(v=>out.push({
+  time:idHM(v.id),art:'Neues Fahrzeug',text:[v.plate,v.brand,v.model].filter(Boolean).join(' '),
+  amt:null,user:um[v.id]||'—',cls:'new'}));
+ return out.sort((a,b)=>String(a.time||'').localeCompare(String(b.time||'')));
+}
+
+const FARBE={doc:'#1F2A4D',in:'#16a34a',out:'#dc2626',new:'#C9A227'};
+
+window.vTagesbericht=function(){
+ const day=TB_DATE, items=tbItems(day);
+ const nDoc=items.filter(i=>i.cls==='doc').length;
+ const nProt=items.filter(i=>i.art==='Annahme'||i.art==='Übergabe').length;
+ const sIn=items.filter(i=>i.cls==='in').reduce((a,i)=>a+i.amt,0);
+ const sOut=items.filter(i=>i.cls==='out').reduce((a,i)=>a-i.amt,0);
+ const nNew=items.filter(i=>i.cls==='new').length;
+ const stat=(lbl,val,cls,sub)=>`<div class="card stat"><div class="lbl">${lbl}</div><div class="val ${cls||''}">${val}</div><div class="sub">${sub||''}</div></div>`;
+ const heute=day===todayISO();
+ return `<div class="phead"><h1>${t('tagesbericht')}</h1>
+   <div class="sub">${esc(S.settings.name||'')} · ${fmtD(day)}${heute?' · heute':''}</div>${mobMods()}</div>
+  <div class="toolbar">
+   <button class="pill" onclick="tbShift(-1)">‹ Vortag</button>
+   <input type="date" value="${day}" onchange="tbSet(this.value)">
+   <button class="pill" onclick="tbShift(1)">Folgetag ›</button>
+   <button class="pill" onclick="tbSet('${todayISO()}')">Heute</button>
+   <span class="sp"></span>
+   <button class="abtn white" onclick="tbPrint()">🖨 Drucken</button>
+   <button class="abtn blue" onclick="tbPDF()">📄 PDF</button>
+  </div>
+  <div class="grid2">
+   ${stat('Belege',nDoc,'c-blue','Rechnung · Angebot · Auftrag')}
+   ${stat('Annahme / Übergabe',nProt,'c-blue','Protokolle')}
+   ${stat('Geld ein',eur(sIn),'c-green','Einnahmen des Tages')}
+   ${stat('Geld aus',eur(sOut),'c-red','Ausgaben des Tages')}
+   ${stat('Neu angelegt',nNew,'c-orange','Kunden & Fahrzeuge')}
+   ${stat('Vorgänge gesamt',items.length,'','am '+fmtD(day))}
+  </div>
+  <div class="sechead"><h2>Verlauf</h2><div class="sub">nach Uhrzeit</div></div>
+  <div class="card" style="padding:0;overflow:hidden">
+  ${items.length?items.map(i=>`
+   <div style="display:flex;gap:12px;align-items:flex-start;padding:13px 16px;border-bottom:1px solid var(--line)">
+    <div style="min-width:46px;font-weight:800;color:var(--muted);font-size:13.5px">${esc(i.time||'—')}</div>
+    <div style="width:4px;align-self:stretch;border-radius:3px;background:${FARBE[i.cls]||'#94a3b8'}"></div>
+    <div style="flex:1;min-width:0">
+     <div style="font-weight:700;font-size:14.5px">${esc(i.art)}</div>
+     <div style="color:var(--muted);font-size:13.5px;line-height:1.5;word-break:break-word">${esc(i.text||'')}</div>
+     <div style="color:var(--muted);font-size:12.5px;margin-top:3px">👤 ${esc(i.user||'—')}</div>
+    </div>
+    ${i.amt===null?'':`<div style="font-weight:800;white-space:nowrap;color:${i.amt<0?'#dc2626':'#16a34a'}">${i.amt<0?'−':''}${eur(Math.abs(i.amt))}</div>`}
+   </div>`).join(''):`<div class="lcempty" style="padding:26px">An diesem Tag wurde nichts erfasst.</div>`}
+  </div>`;
+};
+
+function tbHTML(day,items){
+ const sIn=items.filter(i=>i.cls==='in').reduce((a,i)=>a+i.amt,0);
+ const sOut=items.filter(i=>i.cls==='out').reduce((a,i)=>a-i.amt,0);
+ const rows=items.map(i=>`<tr>
+   <td>${esc(i.time||'')}</td><td>${esc(i.art)}</td><td>${esc(i.text||'')}</td>
+   <td>${esc(i.user||'—')}</td><td class="r">${i.amt===null?'':(i.amt<0?'−':'')+eur(Math.abs(i.amt))}</td></tr>`).join('');
+ return dHead('TAGESBERICHT','',day)+
+  `<table class="dtbl"><thead><tr><th>Zeit</th><th>Art</th><th>Vorgang</th><th>Mitarbeiter</th><th class="r">Betrag €</th></tr></thead>
+   <tbody>${rows||'<tr><td colspan="5">–</td></tr>'}</tbody></table>
+   <table class="dsum">
+    <tr><td>Einnahmen</td><td class="r">${eur(sIn)}</td></tr>
+    <tr><td>Ausgaben</td><td class="r">${eur(sOut)}</td></tr>
+    <tr class="grand"><td>Differenz</td><td class="r">${eur(sIn-sOut)}</td></tr>
+   </table>
+   <p style="font-size:10px;color:#68718a;margin-top:10px">Interner Tagesbericht – keine Rechnung, kein Buchungsbeleg.</p>`+
+  dFoot();
+}
+window.tbPDF=function(){ const d=TB_DATE; pdfFromHTML(tbHTML(d,tbItems(d)),'Tagesbericht-'+d); };
+window.tbPrint=function(){
+ const d=TB_DATE;
+ const ifr=document.createElement('iframe');
+ ifr.style.cssText='position:fixed;right:0;bottom:0;width:0;height:0;border:0';
+ document.body.appendChild(ifr);
+ const doc=ifr.contentWindow.document; doc.open();
+ doc.write(`<!DOCTYPE html><html><head><meta charset="utf-8"><style>@page{size:A4;margin:16mm 15mm}${DOC_CSS}
+  .dfoot{position:fixed;bottom:0;left:0;right:0}</style></head><body>${tbHTML(d,tbItems(d))}</body></html>`);
+ doc.close();
+ setTimeout(()=>{ifr.contentWindow.focus();ifr.contentWindow.print();setTimeout(()=>document.body.removeChild(ifr),4000);},380);
+};
+
+/* ---------- 6) Router erweitern ---------- */
+const _render=window.render;
+window.render=function(){
+ _render.apply(this,arguments);
+ if(PAGE==='tagesbericht'){
+  const el=document.getElementById('view');
+  if(el)el.innerHTML=vTagesbericht();
+ }
+};
+})();
+</script>
+
 </body>
 </html>
