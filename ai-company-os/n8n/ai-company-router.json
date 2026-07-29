@@ -1,0 +1,58 @@
+{
+  "name": "AI Company OS - Command Router",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "ai-company-command",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "webhook-command",
+      "name": "Command Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [260, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "const body = $json.body ?? $json;\nconst command = String(body.command ?? body.message ?? '').trim();\nconst upper = command.toUpperCase();\nlet team = 'CEO';\nif (upper.startsWith('MEDIA:') || /YOUTUBE|TIKTOK|INSTAGRAM|SPOTIFY|SUNO|VIDEO|MÜZİK/.test(upper)) team = 'MEDIA';\nelse if (upper.startsWith('COMMERCE:') || /SHOPIFY|ÜRÜN|DROPSHIPPING|REKLAM|MARJ/.test(upper)) team = 'COMMERCE';\nelse if (upper.startsWith('NWASB:') || /FATURA|TEKLİF|ARAÇ|MÜŞTERİ|PARÇA|SERVİS/.test(upper)) team = 'NWASB';\nelse if (upper.startsWith('DEV:') || /GITHUB|N8N|SUPABASE|VERCEL|API|KOD|YAZILIM/.test(upper)) team = 'DEV';\nreturn [{ json: { ok: true, team, command, status: 'ROUTED', requiresHumanApproval: false, createdAt: new Date().toISOString() } }];"
+      },
+      "id": "route-command",
+      "name": "Route Command",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [520, 300]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ $json }}",
+        "options": {}
+      },
+      "id": "respond",
+      "name": "Return Route",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.4,
+      "position": [780, 300]
+    }
+  ],
+  "connections": {
+    "Command Webhook": {
+      "main": [[{ "node": "Route Command", "type": "main", "index": 0 }]]
+    },
+    "Route Command": {
+      "main": [[{ "node": "Return Route", "type": "main", "index": 0 }]]
+    }
+  },
+  "pinData": {},
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "active": false,
+  "versionId": "ai-company-os-router-v1",
+  "meta": {
+    "templateCredsSetupCompleted": false
+  },
+  "tags": []
+}
