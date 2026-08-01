@@ -1,0 +1,86 @@
+{
+  "name": "AI Business OS - Command Router",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "ai-business-os-command",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "webhook-command",
+      "name": "Command Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [0, 0]
+    },
+    {
+      "parameters": {
+        "jsCode": "const body = $json.body ?? $json;\nconst command = String(body.command ?? '').trim();\nif (!command) throw new Error('command is required');\nconst company = String(body.company ?? 'owner');\nconst text = command.toLowerCase();\nlet route = 'ceo';\nif (/werkstatt|araç|araba|müşteri|fatura|parça|reifen|rechnung/.test(text)) route = 'workshop';\nelse if (/müzik|şarkı|suno|video|youtube|instagram|tiktok|içerik/.test(text)) route = 'media';\nelse if (/gelir|gider|kasa|atm|para|maliyet|kâr|kar/.test(text)) route = 'finance';\nelse if (/müşteri ajan|ajans|kurulum|abonelik|client/.test(text)) route = 'agency';\nconst approvalRequired = /gönder|yayınla|sil|öde|satın al|mesaj at|mail at/.test(text);\nreturn [{json:{command,company,route,approvalRequired,receivedAt:new Date().toISOString()}}];"
+      },
+      "id": "classify-command",
+      "name": "Classify Command",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [240, 0]
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {"conditions":{"options":{"caseSensitive":true,"leftValue":"","typeValidation":"strict","version":2},"conditions":[{"leftValue":"={{ $json.route }}","rightValue":"workshop","operator":{"type":"string","operation":"equals"}}],"combinator":"and"},"renameOutput":true,"outputKey":"Workshop"},
+            {"conditions":{"options":{"caseSensitive":true,"leftValue":"","typeValidation":"strict","version":2},"conditions":[{"leftValue":"={{ $json.route }}","rightValue":"media","operator":{"type":"string","operation":"equals"}}],"combinator":"and"},"renameOutput":true,"outputKey":"Media"},
+            {"conditions":{"options":{"caseSensitive":true,"leftValue":"","typeValidation":"strict","version":2},"conditions":[{"leftValue":"={{ $json.route }}","rightValue":"finance","operator":{"type":"string","operation":"equals"}}],"combinator":"and"},"renameOutput":true,"outputKey":"Finance"},
+            {"conditions":{"options":{"caseSensitive":true,"leftValue":"","typeValidation":"strict","version":2},"conditions":[{"leftValue":"={{ $json.route }}","rightValue":"agency","operator":{"type":"string","operation":"equals"}}],"combinator":"and"},"renameOutput":true,"outputKey":"Agency"}
+          ]
+        },
+        "options": {"fallbackOutput":"extra","renameFallbackOutput":"CEO"}
+      },
+      "id": "route-command",
+      "name": "Route Command",
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.2,
+      "position": [480, 0]
+    },
+    {
+      "parameters": {"jsCode":"return [{json:{...$json,assignedAgent:'Workshop Operations Agent',status:$json.approvalRequired?'waiting_approval':'queued'}}];"},
+      "id":"workshop-agent","name":"Workshop Agent","type":"n8n-nodes-base.code","typeVersion":2,"position":[740,-220]
+    },
+    {
+      "parameters": {"jsCode":"return [{json:{...$json,assignedAgent:'Media Production Agent',status:$json.approvalRequired?'waiting_approval':'queued'}}];"},
+      "id":"media-agent","name":"Media Agent","type":"n8n-nodes-base.code","typeVersion":2,"position":[740,-80]
+    },
+    {
+      "parameters": {"jsCode":"return [{json:{...$json,assignedAgent:'Finance Controller',status:$json.approvalRequired?'waiting_approval':'queued'}}];"},
+      "id":"finance-agent","name":"Finance Agent","type":"n8n-nodes-base.code","typeVersion":2,"position":[740,60]
+    },
+    {
+      "parameters": {"jsCode":"return [{json:{...$json,assignedAgent:'Agency Operations Agent',status:$json.approvalRequired?'waiting_approval':'queued'}}];"},
+      "id":"agency-agent","name":"Agency Agent","type":"n8n-nodes-base.code","typeVersion":2,"position":[740,200]
+    },
+    {
+      "parameters": {"jsCode":"return [{json:{...$json,assignedAgent:'CEO Orchestrator',status:$json.approvalRequired?'waiting_approval':'queued'}}];"},
+      "id":"ceo-agent","name":"CEO Agent","type":"n8n-nodes-base.code","typeVersion":2,"position":[740,340]
+    },
+    {
+      "parameters": {"respondWith":"json","responseBody":"={{ $json }}","options":{}},
+      "id":"respond","name":"Return Assignment","type":"n8n-nodes-base.respondToWebhook","typeVersion":1.4,"position":[1020,40]
+    }
+  ],
+  "connections": {
+    "Command Webhook": {"main":[[{"node":"Classify Command","type":"main","index":0}]]},
+    "Classify Command": {"main":[[{"node":"Route Command","type":"main","index":0}]]},
+    "Route Command": {"main":[[{"node":"Workshop Agent","type":"main","index":0}],[{"node":"Media Agent","type":"main","index":0}],[{"node":"Finance Agent","type":"main","index":0}],[{"node":"Agency Agent","type":"main","index":0}],[{"node":"CEO Agent","type":"main","index":0}]]},
+    "Workshop Agent":{"main":[[{"node":"Return Assignment","type":"main","index":0}]]},
+    "Media Agent":{"main":[[{"node":"Return Assignment","type":"main","index":0}]]},
+    "Finance Agent":{"main":[[{"node":"Return Assignment","type":"main","index":0}]]},
+    "Agency Agent":{"main":[[{"node":"Return Assignment","type":"main","index":0}]]},
+    "CEO Agent":{"main":[[{"node":"Return Assignment","type":"main","index":0}]]}
+  },
+  "pinData": {},
+  "active": false,
+  "settings": {"executionOrder":"v1"},
+  "versionId": "0f8b6d4c-7a1a-4efa-90e1-010000000001",
+  "meta": {"templateCredsSetupCompleted": false},
+  "tags": []
+}
