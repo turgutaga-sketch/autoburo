@@ -13,6 +13,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
@@ -46,5 +48,6 @@ jobs:
       - name: Original app remains untouched
         shell: bash
         run: |
-          git diff --name-only origin/${{ github.base_ref }}...HEAD
-          test -z "$(git diff --name-only origin/${{ github.base_ref }}...HEAD -- index.html)"
+          BASE_SHA='${{ github.event.pull_request.base.sha }}'
+          git diff --name-only "$BASE_SHA"...HEAD
+          test -z "$(git diff --name-only "$BASE_SHA"...HEAD -- index.html)"
