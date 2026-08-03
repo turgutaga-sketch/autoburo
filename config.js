@@ -6,10 +6,25 @@ window.AUTOBURO_CONFIG = {
 
 /* Sicherer Geldbereich: lädt separat und verändert keine bestehenden Datensätze. */
 (() => {
-  if (document.querySelector('script[data-autoburo-money-module]')) return;
+  const loadFix = () => {
+    if (document.querySelector('script[data-autoburo-money-fix]')) return;
+    const fix = document.createElement('script');
+    fix.src = new URL('money-fix.js?v=1', document.baseURI).href;
+    fix.defer = true;
+    fix.dataset.autoburoMoneyFix = 'true';
+    document.head.appendChild(fix);
+  };
+
+  const existing = document.querySelector('script[data-autoburo-money-module]');
+  if (existing) {
+    loadFix();
+    return;
+  }
+
   const script = document.createElement('script');
-  script.src = new URL('money-section.js?v=1', document.baseURI).href;
+  script.src = new URL('money-section.js?v=2', document.baseURI).href;
   script.defer = true;
   script.dataset.autoburoMoneyModule = 'true';
+  script.addEventListener('load', loadFix, { once: true });
   document.head.appendChild(script);
 })();
