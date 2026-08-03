@@ -13,3 +13,13 @@ window.AUTOBURO_CONFIG = {
   script.dataset.autoburoMoneyUnified = 'true';
   document.head.appendChild(script);
 })();
+
+/* Geld als normale AutoBüro-Seite: ausschließlich Darstellung und Navigation. */
+(() => {
+  if (document.querySelector('script[data-autoburo-money-page]')) return;
+  const script = document.createElement('script');
+  script.src = new URL('money-page-integration.js?v=1', document.baseURI).href;
+  script.defer = true;
+  script.dataset.autoburoMoneyPage = 'true';
+  document.head.appendChild(script);
+})();
