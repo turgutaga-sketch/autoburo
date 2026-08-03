@@ -6,12 +6,27 @@ window.AUTOBURO_CONFIG = {
 
 /* Sicherer Geldbereich: lädt separat und verändert keine bestehenden Datensätze. */
 (() => {
+  const loadSummaryFix = () => {
+    if (document.querySelector('script[data-autoburo-money-summary-fix]')) return;
+    const summaryFix = document.createElement('script');
+    summaryFix.src = new URL('money-summary-fix.js?v=1', document.baseURI).href;
+    summaryFix.defer = true;
+    summaryFix.dataset.autoburoMoneySummaryFix = 'true';
+    document.head.appendChild(summaryFix);
+  };
+
   const loadFix = () => {
-    if (document.querySelector('script[data-autoburo-money-fix]')) return;
+    const existingFix = document.querySelector('script[data-autoburo-money-fix]');
+    if (existingFix) {
+      loadSummaryFix();
+      return;
+    }
+
     const fix = document.createElement('script');
-    fix.src = new URL('money-fix.js?v=1', document.baseURI).href;
+    fix.src = new URL('money-fix.js?v=2', document.baseURI).href;
     fix.defer = true;
     fix.dataset.autoburoMoneyFix = 'true';
+    fix.addEventListener('load', loadSummaryFix, { once: true });
     document.head.appendChild(fix);
   };
 
@@ -22,7 +37,7 @@ window.AUTOBURO_CONFIG = {
   }
 
   const script = document.createElement('script');
-  script.src = new URL('money-section.js?v=2', document.baseURI).href;
+  script.src = new URL('money-section.js?v=3', document.baseURI).href;
   script.defer = true;
   script.dataset.autoburoMoneyModule = 'true';
   script.addEventListener('load', loadFix, { once: true });
