@@ -1,0 +1,40 @@
+name: Money Native Sync Safety Check
+
+on:
+  pull_request:
+    paths:
+      - 'money-native-sync.js'
+      - 'config.js'
+      - 'tests/money-native-sync.test.cjs'
+      - '.github/workflows/money-native-sync-check.yml'
+  workflow_dispatch:
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: JavaScript syntax
+        run: |
+          node --check money-unified.js
+          node --check money-native-sync.js
+          node --check tests/money-native-sync.test.cjs
+      - name: Bidirectional synchronization tests
+        run: node tests/money-native-sync.test.cjs
+      - name: Original application remains untouched
+        shell: bash
+        run: |
+          BASE_SHA='${{ github.event.pull_request.base.sha }}'
+          git diff --name-only "$BASE_SHA"...HEAD
+          test -z "$(git diff --name-only "$BASE_SHA"...HEAD -- index.html)"
+      - name: Only approved integration files changed
+        shell: bash
+        run: |
+          BASE_SHA='${{ github.event.pull_request.base.sha }}'
+          unexpected="$(git diff --name-only "$BASE_SHA"...HEAD | grep -Ev '^(config\.js|money-native-sync\.js|tests/money-native-sync\.test\.cjs|\.github/workflows/money-native-sync-check\.yml)$' || true)"
+          test -z "$unexpected" || { echo "Unexpected files changed:"; echo "$unexpected"; exit 1; }
