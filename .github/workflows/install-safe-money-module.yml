@@ -1,0 +1,58 @@
+name: Install safe money module
+
+on:
+  push:
+    branches:
+      - agent/geld-bereich-sicher
+
+permissions:
+  contents: write
+
+jobs:
+  install:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout branch
+        uses: actions/checkout@v4
+        with:
+          ref: agent/geld-bereich-sicher
+          fetch-depth: 0
+
+      - name: Validate money module
+        run: node --check money-section.js
+
+      - name: Append loader without rewriting existing config
+        shell: bash
+        run: |
+          set -euo pipefail
+          if grep -q "data-autoburo-money-module" config.js; then
+            echo "Money module loader already installed."
+            exit 0
+          fi
+
+          cat >> config.js <<'LOADER'
+
+          /* Sicherer Geldbereich: lädt separat und verändert keine bestehenden Datensätze. */
+          (() => {
+            if (document.querySelector('script[data-autoburo-money-module]')) return;
+            const script = document.createElement('script');
+            script.src = new URL('money-section.js?v=1', document.baseURI).href;
+            script.defer = true;
+            script.dataset.autoburoMoneyModule = 'true';
+            document.head.appendChild(script);
+          })();
+          LOADER
+
+      - name: Commit loader only when changed
+        shell: bash
+        run: |
+          set -euo pipefail
+          if git diff --quiet -- config.js; then
+            echo "No changes needed."
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add config.js
+          git commit -m "Load safe money module"
+          git push origin HEAD:agent/geld-bereich-sicher
