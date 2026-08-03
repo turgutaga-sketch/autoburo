@@ -6,10 +6,25 @@ window.AUTOBURO_CONFIG = {
 
 /* Einheitlicher Geldbereich: additiv, ohne Änderung bestehender Stammdaten. */
 (() => {
-  if (document.querySelector('script[data-autoburo-money-unified]')) return;
+  const loadNativeSync = () => {
+    if (document.querySelector('script[data-autoburo-money-native-sync]')) return;
+    const sync = document.createElement('script');
+    sync.src = new URL('money-native-sync.js?v=1', document.baseURI).href;
+    sync.defer = true;
+    sync.dataset.autoburoMoneyNativeSync = 'true';
+    document.head.appendChild(sync);
+  };
+
+  const existing = document.querySelector('script[data-autoburo-money-unified]');
+  if (existing) {
+    loadNativeSync();
+    return;
+  }
+
   const script = document.createElement('script');
   script.src = new URL('money-unified.js?v=1', document.baseURI).href;
   script.defer = true;
   script.dataset.autoburoMoneyUnified = 'true';
+  script.addEventListener('load', loadNativeSync, { once: true });
   document.head.appendChild(script);
 })();
