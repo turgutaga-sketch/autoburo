@@ -23,7 +23,11 @@ jobs:
           node <<'NODE'
           const fs = require('fs');
           const file = fs.readFileSync('index.html', 'utf8');
-          const terms = ['nwasb_buero_v1','localStorage','sessionStorage','AUTOBURO_CONFIG','supabase','Chef / CEO','Code','function save','save=','invoices','login','pin'];
+          const terms = [
+            'nwasb_buero_v1','function load','function save','showLock()','showAcc()',
+            'accActive()','accBoot','tenantLoad','tenantPull','tenantPush','cloudPull','cloudPush',
+            'NEEDS_SETUP','ab_acc','ab_pull','tenant_meta','config.js','DOMContentLoaded','window.onload'
+          ];
           console.log('INDEX_BYTES=' + Buffer.byteLength(file));
           const lower = file.toLowerCase();
           for (const term of terms) {
@@ -31,11 +35,11 @@ jobs:
             let offset = 0;
             let count = 0;
             console.log('\n=== TERM: ' + term + ' ===');
-            while (count < 8) {
+            while (count < 12) {
               const i = lower.indexOf(needle, offset);
               if (i < 0) break;
-              const start = Math.max(0, i - 420);
-              const end = Math.min(file.length, i + needle.length + 900);
+              const start = Math.max(0, i - 650);
+              const end = Math.min(file.length, i + needle.length + 1600);
               console.log('\n--- MATCH ' + (count + 1) + ' @ ' + i + ' ---');
               console.log(file.slice(start, end).replace(/\s+/g, ' '));
               offset = i + needle.length;
