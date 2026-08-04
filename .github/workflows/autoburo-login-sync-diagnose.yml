@@ -1,0 +1,43 @@
+name: AutoBuro Login Sync Diagnose
+
+on:
+  push:
+    branches:
+      - agent/web-login-sync-diagnose
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  diagnose:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Inspect login and storage paths safely
+        shell: bash
+        run: |
+          node <<'NODE'
+          const fs = require('fs');
+          const file = fs.readFileSync('index.html', 'utf8');
+          const terms = ['nwasb_buero_v1','localStorage','sessionStorage','AUTOBURO_CONFIG','supabase','Chef / CEO','Code','function save','save=','invoices','login','pin'];
+          console.log('INDEX_BYTES=' + Buffer.byteLength(file));
+          const lower = file.toLowerCase();
+          for (const term of terms) {
+            const needle = term.toLowerCase();
+            let offset = 0;
+            let count = 0;
+            console.log('\n=== TERM: ' + term + ' ===');
+            while (count < 8) {
+              const i = lower.indexOf(needle, offset);
+              if (i < 0) break;
+              const start = Math.max(0, i - 420);
+              const end = Math.min(file.length, i + needle.length + 900);
+              console.log('\n--- MATCH ' + (count + 1) + ' @ ' + i + ' ---');
+              console.log(file.slice(start, end).replace(/\s+/g, ' '));
+              offset = i + needle.length;
+              count++;
+            }
+            console.log('MATCH_COUNT_SHOWN=' + count);
+          }
+          NODE
