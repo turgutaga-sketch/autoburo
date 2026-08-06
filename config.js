@@ -23,3 +23,13 @@ window.AUTOBURO_CONFIG = {
   script.dataset.autoburoMoneyPage = 'true';
   document.head.appendChild(script);
 })();
+
+/* Angebot/Auftrag/Rechnung: repariert ausschließlich den Speichern-Button. */
+(() => {
+  if (document.querySelector('script[data-autoburo-save-doc-fix]')) return;
+  const script = document.createElement('script');
+  script.src = new URL('save-doc-fix.js?v=1', document.baseURI).href;
+  script.defer = true;
+  script.dataset.autoburoSaveDocFix = 'true';
+  document.head.appendChild(script);
+})();
