@@ -2057,7 +2057,7 @@ function sRender(id){render();const e=document.getElementById(id);if(e){e.focus(
 /* Girişte: önce kullanıcı hazır, sonra kilit */
 (async()=>{
  if(!S.settings.users.length){const h=await sha('1234');S.settings.users.push({id:uid(),name:'Chef',role:'chef',pinHash:h});save();}
- if(!AUTH){ if(typeof accActive==='function'&&accActive()&&!ACC){showAcc();} else {showLock();} }
+ if(!AUTH){ if(!ACC){showAcc();} else {showLock();} }
  else{if(!allowPage(PAGE))PAGE=defaultPage();render();}
 })();
 render();
@@ -5259,6 +5259,7 @@ async function accGo(){
   ACC={token:j.access_token, refresh:j.refresh_token, email:m, uid:(j.user&&j.user.id)||'', tenantId:null};
   accSave();
   await tenantOpen();
+  startTenantPolling();
   document.getElementById('acc')?.remove();
   showLock();
   if(NEEDS_SETUP){
@@ -5340,10 +5341,36 @@ function accDevice(){
  return d;
 }
 
-/* Start: ohne Konto zuerst den Anmelde-Bildschirm zeigen */
-if(accActive() && !AUTH){
+/* Start: ohne Konto zuerst den Anmelde-Bildschirm zeigen (Registrierung ist immer Pflicht, unabhängig vom Config-Ladezustand) */
+if(!AUTH){
  if(!ACC){ document.getElementById('lock')?.remove(); showAcc(); }
- else{ tenantOpen().then(()=>{ if(PAGE)render(); }).catch(()=>{}); }
+ else if(accActive()){ tenantOpen().then(()=>{ if(PAGE)render(); startTenantPolling(); }).catch(()=>{}); }
+}else if(ACC){ startTenantPolling(); }
+
+/* ---------- Live-Synchronisation: alle 15s prüfen, ob ein Kollege etwas gespeichert hat ----------
+   Additiv, rein lesend: überschreibt nie einen vollen lokalen Stand mit einem leeren Cloud-Stand. */
+let tPollTimer=null;
+function startTenantPolling(){
+ if(tPollTimer||!accActive()) return;
+ tPollTimer=setInterval(async()=>{
+  if(document.hidden||!ACC||!ACC.tenantId||tPushBusy) return;
+  try{
+   const rows=await sbData('tenants?select=data,updated_at&id=eq.'+ACC.tenantId,{method:'GET'});
+   if(!rows||!rows.length) return;
+   const remote=rows[0];
+   if(!remote.data||!remote.data.settings) return;
+   const localT=localStorage.getItem('ab_pull')||'';
+   if(!(remote.updated_at>localT)) return;
+   const rc=countOf(remote.data), lc=countOf(S);
+   if(lc>0&&rc===0) return; /* Cloud leer, Gerät voll → nie überschreiben */
+   S=remote.data; const d=defState();
+   for(const k in d){ if(S[k]===undefined) S[k]=d[k]; }
+   for(const k in d.settings){ if(S.settings[k]===undefined) S.settings[k]=d.settings[k]; }
+   localStorage.setItem(LSK,JSON.stringify(S));
+   localStorage.setItem('ab_pull',remote.updated_at);
+   if(typeof render==='function') render();
+  }catch(e){/* offline o.ä. – still, nächster Versuch in 15s */}
+ },15000);
 }
 
 /* ---------- Speichern in die Cloud (mit Sicherheitsnetz) ---------- */
