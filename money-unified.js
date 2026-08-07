@@ -212,6 +212,25 @@
 
     const cardHtml = (label, data) => `<article class="summary"><div class="summary-label">${label}</div><div class="summary-balance">${euro.format(data.balance)}</div><div class="detail"><div class="income"><span>Einnahmen</span><strong>${euro.format(data.income)}</strong></div><div class="expense"><span>Ausgaben</span><strong>${euro.format(data.expense)}</strong></div><div><span>Saldo</span><strong>${euro.format(data.balance)}</strong></div></div></article>`;
 
+    const statsCardHtml = () => {
+      try {
+        if (typeof AUTH === 'undefined' || !AUTH || AUTH.role !== 'chef') return '';
+        const state = getState();
+        if (!state) return '';
+        const wage = Number(state.settings?.defWage) || 0;
+        const miete = Number(state.settings?.miete) || 0;
+        const personal = Number(state.settings?.personalkosten) || 0;
+        const fixMonat = miete + personal;
+        if (!wage || !fixMonat) return '';
+        const fixWoche = fixMonat / (52 / 12);
+        const breakEvenStunden = wage ? fixWoche / wage : 0;
+        const fixProStunde = wage ? fixWoche / (breakEvenStunden || 1) : 0;
+        return `<article class="summary" style="border-color:#e6d9a8;background:#fffdf5"><div class="summary-label">Statistik (nur Chef)</div><div class="summary-balance" style="font-size:16px">${breakEvenStunden.toFixed(1)} Std/Woche</div><div class="detail"><div><span>Fixkosten/Monat</span><strong>${euro.format(fixMonat)}</strong></div><div><span>Break-even/Woche</span><strong>${breakEvenStunden.toFixed(1)} Std</strong></div><div><span>Stundensatz</span><strong>${euro.format(wage)}</strong></div></div></article>`;
+      } catch {
+        return '';
+      }
+    };
+
     const render = () => {
       const entries = allEntries();
       const totals = totalsFor(entries);
@@ -220,7 +239,7 @@
       $('.status').className = `status ${status[0]}`;
       $('.status-title').textContent = status[1];
       $('.status-total').textContent = euro.format(total);
-      summaries.innerHTML = [cardHtml('Bar / Kasse', totals.cash), cardHtml('Bank / Überweisung', totals.bank), cardHtml('Karte / Kreditkarte', totals.card), cardHtml('Gesamt', totals.total)].join('');
+      summaries.innerHTML = [cardHtml('Bar / Kasse', totals.cash), cardHtml('Bank / Überweisung', totals.bank), cardHtml('Karte / Kreditkarte', totals.card), cardHtml('Gesamt', totals.total), statsCardHtml()].join('');
 
       const filtered = selectedFilter === 'all' ? entries : entries.filter((entry) => entry.method === selectedFilter);
       const sorted = [...filtered].sort((a, b) => String(b.date).localeCompare(String(a.date)) || String(b.createdAt).localeCompare(String(a.createdAt)));
