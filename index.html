@@ -7293,7 +7293,27 @@ function stdKennzahlen(){
  const satz=num(S.settings.defWage)||118;
  const gewinnProStd=satz-fixProStd;
  const breakEven=satz>0?fixWoche/satz:0;
- return {fixMonat,fixWoche,fixProStd,satz,gewinnProStd,breakEven,kap};
+ const breakEvenMonat=satz>0?fixMonat/satz:0;
+ return {fixMonat,fixWoche,fixProStd,satz,gewinnProStd,breakEven,breakEvenMonat,kap};
+}
+/* ---- Ampel: geleistete Stunden vs. Break-even (Woche + Monat, automatisch aus Auftrags-Log oder manuell) ---- */
+if(S.settings.stdManWoche===undefined)S.settings.stdManWoche=0;
+if(S.settings.stdManMonat===undefined)S.settings.stdManMonat=0;
+function stdWeekRange(){const now=new Date();const day=(now.getDay()+6)%7;const mon=new Date(now);mon.setDate(now.getDate()-day);const sun=new Date(mon);sun.setDate(mon.getDate()+6);const f=d=>d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');return{from:f(mon),to:f(sun)};}
+function stdJobStd(j){return num(j.stdTatsaechlich)||num(j.stdBerechnet);}
+function stdAutoWoche(){const r=stdWeekRange();return (S.stdJobs||[]).filter(j=>(j.datum||'')>=r.from&&(j.datum||'')<=r.to).reduce((a,j)=>a+stdJobStd(j),0);}
+function stdAutoMonat(){const m=todayISO().slice(0,7);return (S.stdJobs||[]).filter(j=>(j.datum||'').startsWith(m)).reduce((a,j)=>a+stdJobStd(j),0);}
+function fmtStdMin(h){h=Math.max(0,num(h));let std=Math.floor(h),min=Math.round((h-std)*60);if(min===60){std++;min=0;}return std+' Std '+min+' Min';}
+function stdAmpelCard(titel,geleistet,quelle,breakEven,manFeld){
+ const diff=geleistet-breakEven,ok=diff>=0;
+ const bg=ok?'var(--green-bg)':'var(--red-bg)',fg=ok?'var(--green)':'var(--red)';
+ return`<div class="card stat" style="background:${bg};border:2px solid ${fg}">
+  <div class="lbl">${titel} ${quelle==='manuell'?'· manuell':'· automatisch aus Log'}</div>
+  <div class="val" style="color:${fg}">${fmtStdMin(geleistet)}</div>
+  <div style="font-size:13px;color:#555;margin-top:2px">Soll: ${fmtStdMin(breakEven)} · ${ok?'+':'−'}${fmtStdMin(Math.abs(diff))} ${ok?'über':'unter'} Soll</div>
+  <div style="margin-top:10px"><label style="font-size:12px;color:#777;display:block;margin-bottom:3px">Manuell überschreiben (Std, 0 = automatisch)</label>
+  <input type="number" step="0.25" value="${S.settings[manFeld]||''}" placeholder="automatisch" onchange="S.settings['${manFeld}']=+this.value||0;save();render()"></div>
+ </div>`;
 }
 function vStundenprofit(){
  const kz=stdKennzahlen();
@@ -7318,7 +7338,13 @@ function vStundenprofit(){
   ${stat('Fixkosten/Monat',eur(kz.fixMonat),'c-red')}
   ${stat('Fixkosten/Stunde',eur(kz.fixProStd),'c-orange')}
   ${stat('Realer Gewinn/Stunde',eur(kz.gewinnProStd),kz.gewinnProStd>=0?'c-green':'c-red')}
-  ${stat('Break-even Std/Woche',kz.breakEven.toFixed(1)+' Std','c-blue')}
+  ${stat('Break-even Std/Woche',fmtStdMin(kz.breakEven),'c-blue')}
+ </div>
+
+ <div class="lchead">Status: geleistete Stunden vs. Break-even</div>
+ <div class="grid2" style="margin-bottom:22px">
+  ${(()=>{const auto=stdAutoWoche(),man=num(S.settings.stdManWoche),val=man>0?man:auto;return stdAmpelCard('Diese Woche',val,man>0?'manuell':'auto',kz.breakEven,'stdManWoche');})()}
+  ${(()=>{const auto=stdAutoMonat(),man=num(S.settings.stdManMonat),val=man>0?man:auto;return stdAmpelCard('Dieser Monat',val,man>0?'manuell':'auto',kz.breakEvenMonat,'stdManMonat');})()}
  </div>
 
  <div class="lchead">Aufträge (Arbeitszeit-Log)</div>
