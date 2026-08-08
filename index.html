@@ -642,7 +642,7 @@ break;case"<bookViews":;case"<bookViews>":;case"</bookViews>":break;case"<workbo
 'use strict';
 /* ============ i18n · 7 Sprachen ============ */
 const I18N={
-de:{start:'Start',kasse:'Kasse',einnahmen:'Einnahmen',ausgaben:'Ausgaben',kunden:'Kunden',fahrzeuge:'Fahrzeuge',rechnungen:'Rechnungen',termine:'Termine',archiv:'Archiv',schulden:'Schulden',berichte:'Berichte',einstellungen:'Einstellungen',handel:'Handel',
+de:{start:'Start',kasse:'Kasse',einnahmen:'Einnahmen',ausgaben:'Ausgaben',kunden:'Kunden',fahrzeuge:'Fahrzeuge',rechnungen:'Rechnungen',termine:'Termine',archiv:'Archiv',schulden:'Schulden',berichte:'Berichte',einstellungen:'Einstellungen',handel:'Handel',stundenprofit:'Stundenprofit',
 uebersicht:'Übersicht',neu:'Neu',speichern:'Speichern',abbrechen:'Abbrechen',bearbeiten:'Bearbeiten',loeschen:'Löschen',suchen:'Suchen…',pdf:'PDF',drucken:'Drucken',exportW:'Export',importW:'Import',archivieren:'Archivieren',wiederherstellen:'Wiederherstellen',oeffnen:'Öffnen',alle:'Alle',erledigt:'Erledigt',
 qEinnahme:'Neue Einnahme',qAusgabe:'Neue Ausgabe',qKunde:'Neuer Kunde',qTermin:'Neuer Termin',qRechnung:'Neue Rechnung',qDokument:'Dokument',
 bwa:'BWA',vollBwa:'Vollständige BWA →',umsatzNetto:'Umsatz Netto',ausgabenNetto:'Ausgaben Netto',brutto:'Brutto',gewinnVerlust:'Gewinn / Verlust',zahllast:'Zahllast Finanzamt',ustMinusVor:'USt – Vorsteuer',ust19:'Umsatzsteuer (19%)',ausEinnahmen:'aus Einnahmen',vorsteuer:'Vorsteuer',ausAusgaben:'aus Ausgaben',tageskasse:'Tageskasse',kassenstandHeute:'Kassenstand heute',offVerb:'Offene Verbindlichkeiten',postenOffen:'Posten offen',heutTermine:'Heutige Termine',keineTermine:'Keine Termine für heute.',faellZahl:'Fällige Zahlungen',keineFaell:'Keine fälligen Zahlungen.',offFord:'Offene Forderungen',rechnungenOffen:'Rechnungen offen',
@@ -756,7 +756,7 @@ const docGross=d=>docNet(d)-docDisc(d)+docVat(d);
 const TYPEN={RE:'rechnung',AN:'angebot',AU:'auftrag',GS:'gutschrift'};
 
 /* ============ Router ============ */
-const NAV=[['start','home'],['kasse','wallet'],['einnahmen','up'],['ausgaben','down'],['kunden','users'],['fahrzeuge','car'],['teile','part'],['lieferanten','truck'],['rechnungen','doc'],['termine','cal'],['archiv','box'],['schulden','debt'],['berichte','chart'],['steuer','euro'],['handel','car'],['einstellungen','gear']];
+const NAV=[['start','home'],['kasse','wallet'],['einnahmen','up'],['ausgaben','down'],['kunden','users'],['fahrzeuge','car'],['teile','part'],['lieferanten','truck'],['rechnungen','doc'],['termine','cal'],['archiv','box'],['schulden','debt'],['berichte','chart'],['steuer','euro'],['handel','car'],['stundenprofit','chart'],['einstellungen','gear']];
 const BNAV=['start','kasse','einnahmen','ausgaben','kunden'];
 let PAGE='start';
 function go(p){if(window.allowPage&&!allowPage(p))p=window.defaultPage?defaultPage():'start';PAGE=p;render();window.scrollTo(0,0);}
@@ -764,7 +764,7 @@ function render(){
  document.getElementById('tnav').innerHTML=`<div class="tlogo"><div class="nb">AB</div><b>Auto<small>Büro</small></b></div>`+
   (window.navFor?navFor():NAV).map(([p,i])=>`<button class="ti ${PAGE===p?'on':''}" onclick="go('${p}')">${IC[i]}${t(p)}</button>`).join('')+(window.gsBtn?gsBtn():'')+(window.langBtn?langBtn():'')+(window.lockBtn?lockBtn():'');
  document.getElementById('bnav').innerHTML=(window.bnavFor?bnavFor():BNAV).map(p=>{const ic={start:'home',kasse:'wallet',einnahmen:'up',ausgaben:'down',kunden:'users'}[p];return`<button class="${PAGE===p?'on':''}" onclick="go('${p}')">${IC[ic]}${t(p)}</button>`;}).join('');
- const V={start:vStart,kasse:vKasse,einnahmen:vEin,ausgaben:vAus,kunden:vKunden,fahrzeuge:vFzg,teile:window.vTeile,lieferanten:window.vLief,rechnungen:vRech,termine:vTermine,archiv:vArchiv,schulden:vSchulden,berichte:vBerichte,steuer:window.vSteuer,handel:window.vHandel,einstellungen:vEinst}[PAGE];
+ const V={start:vStart,kasse:vKasse,einnahmen:vEin,ausgaben:vAus,kunden:vKunden,fahrzeuge:vFzg,teile:window.vTeile,lieferanten:window.vLief,rechnungen:vRech,termine:vTermine,archiv:vArchiv,schulden:vSchulden,berichte:vBerichte,steuer:window.vSteuer,handel:window.vHandel,stundenprofit:window.vStundenprofit,einstellungen:vEinst}[PAGE];
  document.getElementById('view').innerHTML=V?V():'';
 }
 function mobMods(){return`<div id="mobmods">${(window.navFor?navFor().slice(5):NAV.slice(5)).map(([p])=>`<button class="pill ${PAGE===p?'blue':''}" onclick="go('${p}')">${t(p)}</button>`).join('')}${window.openGSearch?`<button class="pill" onclick="openGSearch()">🔍</button>`:''}${window.lockNow?`<button class="pill" onclick="lockNow()">🔒 ${t('sperren')}</button>`:''}</div>`;}
@@ -7207,6 +7207,99 @@ function kiPanelProt(){
  </div>`;
 }
 window.kiPanelProt=kiPanelProt;
+</script>
+<script>
+/* ============ STUNDENPROFIT – reale Stundenkosten der Werkstatt (additiv, eigenständiges Modul) ============ */
+if(!S.stdKat)S.stdKat=[];
+if(!S.stdJobs)S.stdJobs=[];
+if(S.settings.kapStunden===undefined)S.settings.kapStunden=0;
+const STD_PERIODEN={monat:'Monatlich',woche:'Wöchentlich',jahr:'Jährlich',einmalig:'Einmalig'};
+function stdKatMonatlich(k){
+ const b=num(k.betrag);
+ if(k.periode==='woche')return b*52/12;
+ if(k.periode==='jahr')return b/12;
+ return b; /* monat oder einmalig: voll angerechnet */
+}
+function stdFixMonat(){if(!S.stdKat)S.stdKat=[];return S.stdKat.reduce((a,k)=>a+stdKatMonatlich(k),0);}
+function stdKennzahlen(){
+ const fixMonat=stdFixMonat();
+ const fixWoche=fixMonat/(52/12);
+ const kap=num(S.settings.kapStunden);
+ const fixProStd=kap>0?fixWoche/kap:0;
+ const satz=num(S.settings.defWage)||118;
+ const gewinnProStd=satz-fixProStd;
+ const breakEven=satz>0?fixWoche/satz:0;
+ return {fixMonat,fixWoche,fixProStd,satz,gewinnProStd,breakEven,kap};
+}
+function vStundenprofit(){
+ const kz=stdKennzahlen();
+ const stat=(lbl,val,cls)=>`<div class="card stat"><div class="lbl">${lbl}</div><div class="val ${cls}">${val}</div></div>`;
+ const jobs=[...(S.stdJobs||[])].sort((a,b)=>(b.datum||'').localeCompare(a.datum||''));
+ return`<div class="phead"><h1>${t('stundenprofit')}</h1><div class="sub">Reale Stundenkosten & Arbeitszeit-Profit</div>${mobMods()}</div>
+
+ <div class="lchead">Betriebskosten (monatlich normalisiert)</div>
+ <div class="listcard">${(S.stdKat||[]).length?S.stdKat.map(k=>`<div class="lrow">
+  <div class="lic" style="background:var(--amber-bg);color:var(--amber)">${IC.euro}</div>
+  <div class="main"><b>${esc(k.name)}</b><span>${eur(k.betrag)} · ${STD_PERIODEN[k.periode]||k.periode} → ${eur(stdKatMonatlich(k))}/Monat</span></div>
+  <div class="rowbtns"><button class="sbtn" onclick="editStdKat('${k.id}')">✎</button><button class="sbtn red" onclick="delItem('stdKat','${k.id}')">🗑</button></div></div>`).join(''):'<div class="lcempty">Noch keine Kostenposition. Miete, Personal, Strom usw. hier eintragen.</div>'}</div>
+ <button class="sbtn" style="margin:10px 0 22px" onclick="editStdKat()">＋ Kostenposition hinzufügen</button>
+
+ <div class="lchead">Kapazität & Stundensatz</div>
+ <div class="frow2" style="margin-bottom:22px">
+  <div class="fld"><label>Abrechenbare Stunden / Woche (gesamtes Team)</label><input type="number" value="${esc(S.settings.kapStunden)}" onchange="S.settings.kapStunden=+this.value||0;save();toast(t('gespeichert'))"></div>
+  <div class="fld"><label>Verkaufspreis pro Arbeitsstunde (€)</label><input type="number" value="${esc(S.settings.defWage)}" onchange="S.settings.defWage=+this.value||118;save();toast(t('gespeichert'))"></div>
+ </div>
+
+ <div class="grid2" style="margin-bottom:22px">
+  ${stat('Fixkosten/Monat',eur(kz.fixMonat),'c-red')}
+  ${stat('Fixkosten/Stunde',eur(kz.fixProStd),'c-orange')}
+  ${stat('Realer Gewinn/Stunde',eur(kz.gewinnProStd),kz.gewinnProStd>=0?'c-green':'c-red')}
+  ${stat('Break-even Std/Woche',kz.breakEven.toFixed(1)+' Std','c-blue')}
+ </div>
+
+ <div class="lchead">Aufträge (Arbeitszeit-Log)</div>
+ <div class="listcard">${jobs.length?jobs.map(j=>{
+  const std=num(j.stdTatsaechlich)||num(j.stdBerechnet);
+  const umsatz=std*(num(j.stundensatz)||kz.satz);
+  const profit=std*kz.gewinnProStd;
+  return`<div class="lrow"><div class="lic" style="background:var(--blue-bg,#eef2ff);color:var(--blue)">${IC.car}</div>
+  <div class="main"><b>${esc(j.fahrzeug||'')} · ${esc(j.beschreibung||'')}</b><span>${fmtD(j.datum)} · ${std} Std${j.mitarbeiter?' · '+esc(j.mitarbeiter):''}</span></div>
+  <div class="amt ${profit>=0?'c-green':'c-red'}">${eur(umsatz)} <small style="display:block;font-weight:400">Profit: ${eur(profit)}</small></div>
+  <div class="rowbtns"><button class="sbtn" onclick="editStdJob('${j.id}')">✎</button><button class="sbtn red" onclick="delItem('stdJobs','${j.id}')">🗑</button></div></div>`;
+ }).join(''):'<div class="lcempty">Keine Aufträge erfasst.</div>'}</div>
+ <button class="sbtn" style="margin-top:10px" onclick="editStdJob()">＋ Auftrag erfassen</button>`;
+}
+function editStdKat(id){
+ const k=id?S.stdKat.find(x=>x.id===id):{periode:'monat'};
+ openModal(id?t('bearbeiten'):'Kostenposition',
+ `${fld('Bezeichnung (z. B. Miete, Personal, Strom)','f_kn',k.name)}
+  <div class="frow2">${fld('Betrag (€)','f_kb',k.betrag,'text','inputmode="decimal"')}
+  <div class="fld"><label>Zeitraum</label><select id="f_kp">${Object.entries(STD_PERIODEN).map(([kk,v])=>`<option value="${kk}" ${k.periode===kk?'selected':''}>${v}</option>`).join('')}</select></div></div>`,
+ `<button class="abtn white" onclick="closeModal()">${t('abbrechen')}</button><button class="abtn green" onclick="saveStdKat('${id||''}')">${t('speichern')}</button>`);
+}
+function saveStdKat(id){
+ const o={name:gv('f_kn'),betrag:num(gv('f_kb')),periode:gv('f_kp')||'monat'};
+ if(!S.stdKat)S.stdKat=[];
+ if(id){Object.assign(S.stdKat.find(x=>x.id===id),o);}else{S.stdKat.unshift({id:uid(),...o});}
+ save();closeModal();toast(t('gespeichert'));render();
+}
+function editStdJob(id){
+ const j=id?S.stdJobs.find(x=>x.id===id):{datum:todayISO(),stundensatz:S.settings.defWage};
+ openModal(id?t('bearbeiten'):'Auftrag erfassen',
+ `<div class="frow2">${fld('Fahrzeug / Kennzeichen','f_jf',j.fahrzeug)}${fld('Datum','f_jd',j.datum,'date')}</div>
+  ${fld('Beschreibung / Auftrag','f_jb',j.beschreibung)}
+  <div class="frow2">${fld('Berechnete Stunden','f_js',j.stdBerechnet,'text','inputmode="decimal"')}${fld('Tatsächliche Stunden (optional)','f_jt',j.stdTatsaechlich,'text','inputmode="decimal"')}</div>
+  <div class="frow2">${fld('Stundensatz (€)','f_jr',j.stundensatz,'text','inputmode="decimal"')}${fld('Mitarbeiter (optional)','f_jm',j.mitarbeiter)}</div>
+  ${fld('Notiz','f_jn',j.notiz)}`,
+ `<button class="abtn white" onclick="closeModal()">${t('abbrechen')}</button><button class="abtn green" onclick="saveStdJob('${id||''}')">${t('speichern')}</button>`);
+}
+function saveStdJob(id){
+ const o={fahrzeug:gv('f_jf'),beschreibung:gv('f_jb'),datum:gv('f_jd')||todayISO(),stdBerechnet:num(gv('f_js')),stdTatsaechlich:num(gv('f_jt')),stundensatz:num(gv('f_jr'))||S.settings.defWage,mitarbeiter:gv('f_jm'),notiz:gv('f_jn')};
+ if(!S.stdJobs)S.stdJobs=[];
+ if(id){Object.assign(S.stdJobs.find(x=>x.id===id),o);}else{S.stdJobs.unshift({id:uid(),...o});}
+ save();closeModal();toast(t('gespeichert'));render();
+}
+window.vStundenprofit=vStundenprofit;
 </script>
 </body>
 </html>
