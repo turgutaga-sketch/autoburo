@@ -7391,5 +7391,22 @@ function saveStdJob(id){
 }
 window.vStundenprofit=vStundenprofit;
 </script>
+<script>
+/* PATCH v12 · WhatsApp/PDF-Teilen: Doppelversand-Schutz (Debounce) */
+(function(){
+  var _pdfBusy=false;
+  var _origShare=window.pdfShare, _origWa=window.pdfWa;
+  window.pdfShare=async function(){
+    if(_pdfBusy)return; _pdfBusy=true;
+    try{ if(_origShare) await _origShare(); }
+    finally{ setTimeout(function(){_pdfBusy=false;},1200); }
+  };
+  window.pdfWa=async function(){
+    if(_pdfBusy)return; _pdfBusy=true;
+    try{ if(_origWa) await _origWa(); }
+    finally{ setTimeout(function(){_pdfBusy=false;},1200); }
+  };
+})();
+</script>
 </body>
 </html>
