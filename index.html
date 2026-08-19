@@ -748,9 +748,10 @@ function calc(scopeArrIn,scopeArrOut){
 const cashBalance=()=>sumF(S.incomes.filter(i=>i.method==='bar'),'gross')-sumF(S.expenses.filter(e=>e.method==='bar'),'gross');
 const openReceivables=()=>{const inv=S.docs.filter(d=>d.type==='RE'&&!d.archived&&d.status!=='bezahlt');const iSum=inv.reduce((a,d)=>a+docGross(d),0);const f=S.debts.filter(d=>d.kind==='forderung'&&!d.done);return{sum:iSum+sumF(f,'amount'),nInv:inv.length,nDebt:f.length};};
 const openLiabilities=()=>{const ex=S.expenses.filter(e=>!e.paid);const v=S.debts.filter(d=>d.kind==='verbindlichkeit'&&!d.done);return{sum:sumF(ex,'gross')+sumF(v,'amount'),n:ex.length+v.length};};
-const docNet=d=>(d.pos||[]).reduce((a,p)=>a+num(p.qty)*num(p.price),0);
+const posPrice=p=>p&&p.isRab?-Math.abs(num(p.price)):num(p.price);
+const docNet=d=>(d.pos||[]).reduce((a,p)=>a+num(p.qty)*posPrice(p),0);
 const docDisc=d=>{const n=docNet(d);if(!d||!num(d.discVal))return 0;const v=num(d.discVal);return Math.min(n,d.discTyp==='eur'?v:n*v/100);};
-const docVatRaw=d=>(d.pos||[]).reduce((a,p)=>a+num(p.qty)*num(p.price)*num(p.vat??19)/100,0);
+const docVatRaw=d=>(d.pos||[]).reduce((a,p)=>a+num(p.qty)*posPrice(p)*num(p.vat??19)/100,0);
 const docVat=d=>{const n=docNet(d);const f=n?1-docDisc(d)/n:1;return docVatRaw(d)*f;};
 const docGross=d=>docNet(d)-docDisc(d)+docVat(d);
 const TYPEN={RE:'rechnung',AN:'angebot',AU:'auftrag',GS:'gutschrift'};
@@ -1057,17 +1058,17 @@ function posRows(){return POS.map((p,i)=>p.isRab?`<tr style="background:#fff5f6"
  <td><input class="qty" value="${esc(p.qty)}" inputmode="decimal" oninput="POS[${i}].qty=this.value;updTot()"></td>
  <td><input class="prc" value="${esc(Math.abs(num(p.price))||'')}" style="color:var(--red)" inputmode="decimal" placeholder="15" oninput="POS[${i}].price=-Math.abs(num(this.value));updTot()"></td>
  <td><input class="qty" value="${esc(p.vat??19)}" inputmode="decimal" oninput="POS[${i}].vat=this.value;updTot()"></td>
- <td class="amt c-red" id="pt${i}" style="font-size:14px">${eur(num(p.qty)*num(p.price))}</td>
+ <td class="amt c-red" id="pt${i}" style="font-size:14px">${eur(num(p.qty)*posPrice(p))}</td>
  <td><button class="sbtn red" onclick="POS.splice(${i},1);redrawPos()">🗑</button></td></tr>`:`<tr>
  <td style="position:relative"><input value="${esc(p.desc)}" oninput="POS[${i}].desc=this.value;posSuggest(${i},this)" onblur="setTimeout(hideSug,180)" placeholder="Pos..."></td>
  <td><input class="qty" value="${esc(p.qty)}" inputmode="decimal" oninput="POS[${i}].qty=this.value;updTot()"></td>
  <td><input class="prc" value="${esc(p.price)}" inputmode="decimal" oninput="POS[${i}].price=this.value;updTot()"></td>
  ${(AUTH&&AUTH.role==='chef')?`<td><input class="prc" value="${esc(p.cost??'')}" inputmode="decimal" placeholder="EK" style="color:var(--lbl)" oninput="POS[${i}].cost=this.value" title="${t('einkaufspreis')}"></td>`:''}
  <td><input class="qty" value="${esc(p.vat??19)}" inputmode="decimal" oninput="POS[${i}].vat=this.value;updTot()"></td>
- <td class="amt" id="pt${i}" style="font-size:14px">${eur(num(p.qty)*num(p.price))}</td>
+ <td class="amt" id="pt${i}" style="font-size:14px">${eur(num(p.qty)*posPrice(p))}</td>
  <td><button class="sbtn red" onclick="POS.splice(${i},1);redrawPos()">🗑</button></td></tr>`).join('');}
 function redrawPos(){document.getElementById('postbl').innerHTML=`<tr style="color:var(--lbl);font-size:12px;text-transform:uppercase"><td>${t('beschreibung')}</td><td>${t('menge')}</td><td>${t('einzelpreis')}</td>${(AUTH&&AUTH.role==='chef')?`<td>${t('einkaufspreis')}</td>`:''}<td>${t('mwst')}</td><td>${t('gesamtL')}</td><td></td></tr>`+posRows();updTot();}
-function updTot(){POS.forEach((p,i)=>{const e=document.getElementById('pt'+i);if(e)e.textContent=eur(num(p.qty)*num(p.price));});
+function updTot(){POS.forEach((p,i)=>{const e=document.getElementById('pt'+i);if(e)e.textContent=eur(num(p.qty)*posPrice(p));});
  const d={pos:POS,discTyp:gv('f_dt')||'pct',discVal:gv('f_dv')};const disc=docDisc(d);
  const el=document.getElementById('dtot');if(el)el.innerHTML=`<div class="totline"><span>${t('netto')}</span><b>${eur(docNet(d))}</b></div>${disc?`<div class="totline" style="color:var(--red)"><span>${t('rabatt')}${d.discTyp!=='eur'?' ('+num(d.discVal)+' %)':''}</span><span>−${eur(disc)}</span></div>`:''}<div class="totline"><span>${t('zzglMwst')}</span><span>${eur(docVat(d))}</span></div><div class="totline big"><span>${t('gesamtbetrag')}</span><span>${eur(docGross(d))}</span></div>`;}
 function editDoc(id){
@@ -1333,8 +1334,8 @@ async function pdfFromHTML(html,filename){window._pvPages=[];
   while(pos<canvas.height-4){const sh=Math.min(pagePx,canvas.height-pos);
    const sl=document.createElement('canvas');sl.width=canvas.width;sl.height=sh;
    sl.getContext('2d').drawImage(canvas,0,pos,canvas.width,sh,0,0,canvas.width,sh);
-   const du=sl.toDataURL('image/jpeg',0.92);if(!window._pvPages)window._pvPages=[];_pvPages.push(du);
-  if(pg>0)pdf.addPage();pdf.addImage(du,'JPEG',0,0,pw,sh*pw/canvas.width);pos+=pagePx;pg++;}
+   const du=sl.toDataURL('image/png');if(!window._pvPages)window._pvPages=[];_pvPages.push(du);
+  if(pg>0)pdf.addPage();pdf.addImage(du,'PNG',0,0,pw,sh*pw/canvas.width);pos+=pagePx;pg++;}
   if(window.pdfOut)pdfOut(pdf,filename,window._pvPages);else pdf.save(filename+'.pdf');}catch(e){alert('PDF: '+e.message);}
  document.body.removeChild(ifr);
 }
@@ -1343,7 +1344,7 @@ function docPDF(id){
  const d=S.docs.find(x=>x.id===id);if(!d)return;
  const title={RE:'RECHNUNG',AN:'ANGEBOT',AU:'AUFTRAG'}[d.type];
  const extra=d.serviceDate?`<tr><td>Leistungsdatum:</td><td>${fmtD(d.serviceDate)}</td></tr>`:'';
- const rows=(d.pos||[]).map((p,i)=>`<tr><td>${i+1}</td><td>${esc(p.desc)}</td><td class="r">${esc(p.qty)}</td><td class="r">${num(p.price).toLocaleString('de-DE',{minimumFractionDigits:2})}</td><td class="r">${num(p.vat??19)} %</td><td class="r">${(num(p.qty)*num(p.price)).toLocaleString('de-DE',{minimumFractionDigits:2})}</td></tr>`).join('');
+ const rows=(d.pos||[]).map((p,i)=>`<tr><td>${i+1}</td><td>${esc(p.desc)}</td><td class="r">${esc(p.qty)}</td><td class="r">${posPrice(p).toLocaleString('de-DE',{minimumFractionDigits:2})}</td><td class="r">${num(p.vat??19)} %</td><td class="r">${(num(p.qty)*posPrice(p)).toLocaleString('de-DE',{minimumFractionDigits:2})}</td></tr>`).join('');
  const html=dHead(title,d.no,d.date,extra)+
  `<div class="dcols"><div class="dbox"><div class="dboxh">Kunde</div><b>${esc(d.customerName||'')}</b>${d.customerAddress?'<br>'+esc(d.customerAddress).replace(/\n/g,'<br>'):''}</div>
   ${d.vehiclePlate?`<div class="dbox"><div class="dboxh">Fahrzeug</div>Kennzeichen: <b>${esc(d.vehiclePlate)}</b></div>`:''}</div>
@@ -1810,7 +1811,7 @@ function pickSug(pid){
 /* Muhasebe: ay içi verilen indirimler (belge indirimi + indirim satırları) */
 function rabattMonat(ym){
  return S.docs.filter(d=>d.type==='RE'&&d.date&&d.date.startsWith(ym)).reduce((a,d)=>{
-  const neg=(d.pos||[]).reduce((x,p)=>{const v=num(p.qty)*num(p.price);return x+(v<0?-v:0);},0);
+  const neg=(d.pos||[]).reduce((x,p)=>{const v=num(p.qty)*posPrice(p);return x+(v<0?-v:0);},0);
   return a+docDisc(d)+neg;},0);
 }
 </script>
@@ -1830,14 +1831,14 @@ function nextNo(ty){const y=new Date().getFullYear();
  const n=Math.max(mx+1,c||1);
  if(ty==='RE')S.settings.nextRE=n+1;else if(ty==='AN')S.settings.nextAN=n+1;else if(ty==='GS')S.settings.nextGS=n+1;else if(ty==='MA'||ty==='FA'||ty==='UP'){}else S.settings.nextAU=n+1;
  return ty+'-'+y+'-'+String(n).padStart(4,'0');}
-const hasRabatt=d=>docDisc(d)>0||(d.pos||[]).some(p=>num(p.qty)*num(p.price)<0);
+const hasRabatt=d=>docDisc(d)>0||(d.pos||[]).some(p=>num(p.qty)*posPrice(p)<0);
 const addDaysISO=(iso,n)=>{const d=new Date(iso+'T12:00:00');d.setDate(d.getDate()+n);return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');};
 
 /* MwSt-Aufstellung je Steuersatz (nach Rabatt, gesetzeskonform) */
 function vatBreak(d){
  const net=docNet(d);const f=net?1-docDisc(d)/net:1;
  const by={};
- (d.pos||[]).forEach(p=>{const r=num(p.vat??19);const base=num(p.qty)*num(p.price)*f;by[r]=(by[r]||0)+base;});
+ (d.pos||[]).forEach(p=>{const r=num(p.vat??19);const base=num(p.qty)*posPrice(p)*f;by[r]=(by[r]||0)+base;});
  return Object.entries(by).map(([r,base])=>({rate:+r,base,vat:base*(+r)/100})).sort((a,b)=>b.rate-a.rate);
 }
 
@@ -1849,8 +1850,8 @@ function buildDocX(d){
  const extra=(d.serviceDate?`<tr><td>Leistungsdatum:</td><td>${fmtD(d.serviceDate)}</td></tr>`:'')+(kNr?`<tr><td>Kunden-Nr.:</td><td>${kNr}</td></tr>`:'')+
   (d.type==='RE'&&d.status!=='bezahlt'?`<tr><td>Zahlbar bis:</td><td><b>${fmtD(addDaysISO(d.date,14))}</b></td></tr>`:'');
  const isAU=d.type==='AU';
- const rows=(d.pos||[]).map((p,i)=>{const tot=num(p.qty)*num(p.price);const neg=tot<0;
-  return`<tr>${isAU?`<td><span class="checkbox"></span></td>`:`<td>${i+1}</td>`}<td${neg?' style="color:#c0392b"':''}>${esc(p.desc)}</td><td class="r">${esc(p.qty)}</td><td class="r">${num(p.price).toLocaleString('de-DE',{minimumFractionDigits:2})}</td><td class="r">${num(p.vat??19)} %</td><td class="r"${neg?' style="color:#c0392b"':''}>${tot.toLocaleString('de-DE',{minimumFractionDigits:2})}</td></tr>`;}).join('');
+ const rows=(d.pos||[]).map((p,i)=>{const tot=num(p.qty)*posPrice(p);const neg=tot<0;
+  return`<tr>${isAU?`<td><span class="checkbox"></span></td>`:`<td>${i+1}</td>`}<td${neg?' style="color:#c0392b"':''}>${esc(p.desc)}</td><td class="r">${esc(p.qty)}</td><td class="r">${posPrice(p).toLocaleString('de-DE',{minimumFractionDigits:2})}</td><td class="r">${num(p.vat??19)} %</td><td class="r"${neg?' style="color:#c0392b"':''}>${tot.toLocaleString('de-DE',{minimumFractionDigits:2})}</td></tr>`;}).join('');
  const vb=vatBreak(d);
  const vsum=vb.length>1||vb.some(v=>v.rate!==19)?`<table class="vsum"><tr><th>MwSt-Satz</th><th>Nettobasis</th><th>Steuer</th></tr>${vb.map(v=>`<tr><td>${v.rate} %</td><td>${eur(v.base)}</td><td>${eur(v.vat)}</td></tr>`).join('')}</table>`:'';
  const stamp=d.type==='RE'&&d.status==='bezahlt'?`<div class="dstamp">BEZAHLT${d.date?'':''}</div>`:'';
@@ -2099,8 +2100,8 @@ async function docPdfBlob(d){window._pvPages=[];
  while(pos<canvas.height-4){const sh=Math.min(pagePx,canvas.height-pos);
   const sl=document.createElement('canvas');sl.width=canvas.width;sl.height=sh;
   sl.getContext('2d').drawImage(canvas,0,pos,canvas.width,sh,0,0,canvas.width,sh);
-  const du=sl.toDataURL('image/jpeg',0.92);if(!window._pvPages)window._pvPages=[];_pvPages.push(du);
-  if(pg>0)pdf.addPage();pdf.addImage(du,'JPEG',0,0,pw,sh*pw/canvas.width);pos+=pagePx;pg++;}
+  const du=sl.toDataURL('image/png');if(!window._pvPages)window._pvPages=[];_pvPages.push(du);
+  if(pg>0)pdf.addPage();pdf.addImage(du,'PNG',0,0,pw,sh*pw/canvas.width);pos+=pagePx;pg++;}
  document.body.removeChild(ifr);return pdf;  /* sayfalar window._pvPages'te */
 }
 async function shareDoc(id){
@@ -5106,7 +5107,7 @@ function epcQrDataUrl(d){
   const pl=epcPayload(d);if(!pl||!window.qrcode)return null;
   const q=qrcode(0,'M');           // Typ auto, Fehlerkorrektur M
   q.addData(pl,'Byte');q.make();
-  return q.createDataURL(4,8);     // cellSize 4, margin 8 → scharf
+  return q.createDataURL(8,8);     // cellSize 8, margin 8 → höhere Quellauflösung
  }catch(e){return null;}
 }
 </script>
