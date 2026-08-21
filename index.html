@@ -1344,11 +1344,11 @@ function docPDF(id){
  const d=S.docs.find(x=>x.id===id);if(!d)return;
  const title={RE:'RECHNUNG',AN:'ANGEBOT',AU:'AUFTRAG'}[d.type];
  const extra=d.serviceDate?`<tr><td>Leistungsdatum:</td><td>${fmtD(d.serviceDate)}</td></tr>`:'';
- const rows=(d.pos||[]).map((p,i)=>`<tr><td>${i+1}</td><td>${esc(p.desc)}</td><td class="r">${esc(p.qty)}</td><td class="r">${posPrice(p).toLocaleString('de-DE',{minimumFractionDigits:2})}</td><td class="r">${num(p.vat??19)} %</td><td class="r">${(num(p.qty)*posPrice(p)).toLocaleString('de-DE',{minimumFractionDigits:2})}</td></tr>`).join('');
+ const rows=(d.pos||[]).map((p,i)=>`<tr><td>${i+1}</td><td>${esc(p.desc)}</td><td class="r">${esc(p.qty)}</td><td class="r">${posPrice(p).toLocaleString('de-DE',{minimumFractionDigits:2})}</td><td class="r">${(num(p.qty)*posPrice(p)).toLocaleString('de-DE',{minimumFractionDigits:2})}</td></tr>`).join('');
  const html=dHead(title,d.no,d.date,extra)+
  `<div class="dcols"><div class="dbox"><div class="dboxh">Kunde</div><b>${esc(d.customerName||'')}</b>${d.customerAddress?'<br>'+esc(d.customerAddress).replace(/\n/g,'<br>'):''}</div>
   ${d.vehiclePlate?`<div class="dbox"><div class="dboxh">Fahrzeug</div>Kennzeichen: <b>${esc(d.vehiclePlate)}</b></div>`:''}</div>
- <table class="dtbl"><tr><th style="width:32px">Pos.</th><th>Bezeichnung</th><th style="width:56px" class="r">Menge</th><th style="width:86px" class="r">E-Preis €</th><th style="width:56px" class="r">MwSt</th><th style="width:92px" class="r">Gesamt €</th></tr>${rows}</table>
+ <table class="dtbl"><tr><th style="width:32px">Pos.</th><th>Bezeichnung</th><th style="width:56px" class="r">Menge</th><th style="width:86px" class="r">E-Preis €</th><th style="width:92px" class="r">Gesamt €</th></tr>${rows}</table>
  <table class="dsum"><tr><td>Nettobetrag</td><td class="r">${eur(docNet(d))}</td></tr>${docDisc(d)?`<tr><td>abzgl. Rabatt${d.discTyp!=='eur'?' ('+num(d.discVal)+' %)':''}</td><td class="r">−${eur(docDisc(d))}</td></tr>`:''}<tr><td>zzgl. MwSt.</td><td class="r">${eur(docVat(d))}</td></tr><tr class="grand"><td>Gesamtbetrag</td><td class="r">${eur(docGross(d))}</td></tr></table>
  ${d.remark?`<div class="dnote">${esc(d.remark).replace(/\n/g,'<br>')}</div>`:''}
  <div class="dnote">${d.type==='RE'?'Zahlbar innerhalb von 14 Tagen ohne Abzug. Bitte geben Sie die Rechnungsnummer <b>'+esc(d.no)+'</b> an. Vielen Dank für Ihr Vertrauen!':d.type==='AN'?'Dieses Angebot ist unverbindlich und 14 Tage gültig.':''}</div>`+dFoot();
@@ -1851,7 +1851,7 @@ function buildDocX(d){
   (d.type==='RE'&&d.status!=='bezahlt'?`<tr><td>Zahlbar bis:</td><td><b>${fmtD(addDaysISO(d.date,14))}</b></td></tr>`:'');
  const isAU=d.type==='AU';
  const rows=(d.pos||[]).map((p,i)=>{const tot=num(p.qty)*posPrice(p);const neg=tot<0;
-  return`<tr>${isAU?`<td><span class="checkbox"></span></td>`:`<td>${i+1}</td>`}<td${neg?' style="color:#c0392b"':''}>${esc(p.desc)}</td><td class="r">${esc(p.qty)}</td><td class="r">${posPrice(p).toLocaleString('de-DE',{minimumFractionDigits:2})}</td><td class="r">${num(p.vat??19)} %</td><td class="r"${neg?' style="color:#c0392b"':''}>${tot.toLocaleString('de-DE',{minimumFractionDigits:2})}</td></tr>`;}).join('');
+  return`<tr>${isAU?`<td><span class="checkbox"></span></td>`:`<td>${i+1}</td>`}<td${neg?' style="color:#c0392b"':''}>${esc(p.desc)}</td><td class="r">${esc(p.qty)}</td><td class="r">${posPrice(p).toLocaleString('de-DE',{minimumFractionDigits:2})}</td><td class="r"${neg?' style="color:#c0392b"':''}>${tot.toLocaleString('de-DE',{minimumFractionDigits:2})}</td></tr>`;}).join('');
  const vb=vatBreak(d);
  const vsum=vb.length>1||vb.some(v=>v.rate!==19)?`<table class="vsum"><tr><th>MwSt-Satz</th><th>Nettobasis</th><th>Steuer</th></tr>${vb.map(v=>`<tr><td>${v.rate} %</td><td>${eur(v.base)}</td><td>${eur(v.vat)}</td></tr>`).join('')}</table>`:'';
  const stamp=d.type==='RE'&&d.status==='bezahlt'?`<div class="dstamp">BEZAHLT${d.date?'':''}</div>`:'';
@@ -1865,7 +1865,7 @@ function buildDocX(d){
  return dHead(title,d.no,d.date,extra)+
  `<div class="dcols"><div class="dbox"><div class="dboxh">Kunde</div><b>${esc(d.customerName||'')}</b>${d.customerAddress?'<br>'+esc(d.customerAddress).replace(/\n/g,'<br>'):''}${kNr?`<div class="dinfo">Kunden-Nr. ${kNr}</div>`:''}</div>
   ${d.vehiclePlate?`<div class="dbox"><div class="dboxh">Fahrzeug</div>Kennzeichen: <b>${esc(d.vehiclePlate)}</b>${veh?`<br>${esc((veh.brand||'')+' '+(veh.model||''))}${veh.km?`<br>KM-Stand: ${Number(veh.km).toLocaleString('de-DE')} km`:''}${veh.vin?`<br>FIN: ${esc(veh.vin)}`:''}`:''}</div>`:''}</div>
- <table class="dtbl"><tr><th style="width:32px">${isAU?'✓':'Pos.'}</th><th>Bezeichnung</th><th style="width:56px" class="r">Menge</th><th style="width:86px" class="r">E-Preis €</th><th style="width:56px" class="r">MwSt</th><th style="width:92px" class="r">Gesamt €</th></tr>${rows}</table>
+ <table class="dtbl"><tr><th style="width:32px">${isAU?'✓':'Pos.'}</th><th>Bezeichnung</th><th style="width:56px" class="r">Menge</th><th style="width:86px" class="r">E-Preis €</th><th style="width:92px" class="r">Gesamt €</th></tr>${rows}</table>
  <table class="dsum"><tr><td>Nettobetrag</td><td class="r">${eur(docNet(d))}</td></tr>${docDisc(d)?`<tr style="color:#c0392b"><td>abzgl. Rabatt${d.discTyp!=='eur'?' ('+num(d.discVal)+' %)':''}</td><td class="r">−${eur(docDisc(d))}</td></tr>`:''}<tr><td>zzgl. MwSt.</td><td class="r">${eur(docVat(d))}</td></tr><tr class="grand"><td>Gesamtbetrag</td><td class="r">${eur(docGross(d))}</td></tr></table>
  ${vsum}${stamp}
  ${d.remark?`<div class="dnote">${esc(d.remark).replace(/\n/g,'<br>')}</div>`:''}
