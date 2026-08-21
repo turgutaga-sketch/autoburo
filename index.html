@@ -1057,17 +1057,15 @@ function posRows(){return POS.map((p,i)=>p.isRab?`<tr style="background:#fff5f6"
  <td><input value="${esc(p.desc)}" style="color:var(--red);font-weight:600" oninput="POS[${i}].desc=this.value" placeholder="${t('rabatt')}…"></td>
  <td><input class="qty" value="${esc(p.qty)}" inputmode="decimal" oninput="POS[${i}].qty=this.value;updTot()"></td>
  <td><input class="prc" value="${esc(Math.abs(num(p.price))||'')}" style="color:var(--red)" inputmode="decimal" placeholder="15" oninput="POS[${i}].price=-Math.abs(num(this.value));updTot()"></td>
- <td><input class="qty" value="${esc(p.vat??19)}" inputmode="decimal" oninput="POS[${i}].vat=this.value;updTot()"></td>
  <td class="amt c-red" id="pt${i}" style="font-size:14px">${eur(num(p.qty)*posPrice(p))}</td>
  <td><button class="sbtn red" onclick="POS.splice(${i},1);redrawPos()">🗑</button></td></tr>`:`<tr>
  <td style="position:relative"><input value="${esc(p.desc)}" oninput="POS[${i}].desc=this.value;posSuggest(${i},this)" onblur="setTimeout(hideSug,180)" placeholder="Pos..."></td>
  <td><input class="qty" value="${esc(p.qty)}" inputmode="decimal" oninput="POS[${i}].qty=this.value;updTot()"></td>
  <td><input class="prc" value="${esc(p.price)}" inputmode="decimal" oninput="POS[${i}].price=this.value;updTot()"></td>
  ${(AUTH&&AUTH.role==='chef')?`<td><input class="prc" value="${esc(p.cost??'')}" inputmode="decimal" placeholder="EK" style="color:var(--lbl)" oninput="POS[${i}].cost=this.value" title="${t('einkaufspreis')}"></td>`:''}
- <td><input class="qty" value="${esc(p.vat??19)}" inputmode="decimal" oninput="POS[${i}].vat=this.value;updTot()"></td>
  <td class="amt" id="pt${i}" style="font-size:14px">${eur(num(p.qty)*posPrice(p))}</td>
  <td><button class="sbtn red" onclick="POS.splice(${i},1);redrawPos()">🗑</button></td></tr>`).join('');}
-function redrawPos(){document.getElementById('postbl').innerHTML=`<tr style="color:var(--lbl);font-size:12px;text-transform:uppercase"><td>${t('beschreibung')}</td><td>${t('menge')}</td><td>${t('einzelpreis')}</td>${(AUTH&&AUTH.role==='chef')?`<td>${t('einkaufspreis')}</td>`:''}<td>${t('mwst')}</td><td>${t('gesamtL')}</td><td></td></tr>`+posRows();updTot();}
+function redrawPos(){document.getElementById('postbl').innerHTML=`<tr style="color:var(--lbl);font-size:12px;text-transform:uppercase"><td>${t('beschreibung')}</td><td>${t('menge')}</td><td>${t('einzelpreis')}</td>${(AUTH&&AUTH.role==='chef')?`<td>${t('einkaufspreis')}</td>`:''}<td>${t('gesamtL')}</td><td></td></tr>`+posRows();updTot();}
 function updTot(){POS.forEach((p,i)=>{const e=document.getElementById('pt'+i);if(e)e.textContent=eur(num(p.qty)*posPrice(p));});
  const d={pos:POS,discTyp:gv('f_dt')||'pct',discVal:gv('f_dv')};const disc=docDisc(d);
  const el=document.getElementById('dtot');if(el)el.innerHTML=`<div class="totline"><span>${t('netto')}</span><b>${eur(docNet(d))}</b></div>${disc?`<div class="totline" style="color:var(--red)"><span>${t('rabatt')}${d.discTyp!=='eur'?' ('+num(d.discVal)+' %)':''}</span><span>−${eur(disc)}</span></div>`:''}<div class="totline"><span>${t('zzglMwst')}</span><span>${eur(docVat(d))}</span></div><div class="totline big"><span>${t('gesamtbetrag')}</span><span>${eur(docGross(d))}</span></div>`;}
