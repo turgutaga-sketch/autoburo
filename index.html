@@ -1098,8 +1098,8 @@ function pickCust(cid){const c=S.customers.find(x=>x.id===cid);if(!c)return;
  document.getElementById('f_cn').value=c.name;document.getElementById('f_ca').value=c.address||'';
  const v=S.vehicles.find(v=>v.customerId===cid);if(v)document.getElementById('f_pl').value=v.plate;}
 function saveDoc(id){
- if(!gv('f_cn'))return;
- const o={date:gv('f_d'),serviceDate:gv('f_ld'),customerId:gv('f_ck'),customerName:gv('f_cn'),customerAddress:document.getElementById('f_ca').value,vehiclePlate:gv('f_pl').toUpperCase(),remark:document.getElementById('f_r').value,discTyp:gv('f_dt')||'pct',discVal:gv('f_dv'),pos:POS.filter(p=>p.desc)};
+ if(!gv('f_cn')){alert('⚠ Kunde fehlt / Müşteri adı boş — bitte Kundenname eintragen.');return;}
+ const o={date:gv('f_d'),serviceDate:gv('f_ld'),customerId:gv('f_ck'),customerName:gv('f_cn'),customerAddress:document.getElementById('f_ca').value,vehiclePlate:gv('f_pl').toUpperCase(),remark:document.getElementById('f_r').value,discTyp:gv('f_dt')||'pct',discVal:gv('f_dv'),pos:POS.filter(p=>p.desc||num(p.price)||num(p.qty)>1)};
  if(id){Object.assign(S.docs.find(x=>x.id===id),o);}
  else{const ty=gv('f_ty');
   S.docs.push({id:uid(),type:ty,no:nextNo(ty),status:ty==='RE'?'offen':'-',archived:false,...o});}
