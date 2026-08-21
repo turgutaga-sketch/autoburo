@@ -29,14 +29,17 @@
     if (!table) return globalThis.POS;
     [...table.querySelectorAll('tr')].slice(1).forEach((row, index) => {
       const inputs = row.querySelectorAll('input');
-      if (inputs.length < 4) return;
+      /* Spalten: Beschreibung, Menge, Preis [, Einkaufspreis (nur Chef)] – MwSt-Spalte entfällt */
+      if (inputs.length < 3) return;
       if (!globalThis.POS[index]) globalThis.POS[index] = {};
-      Object.assign(globalThis.POS[index], {
+      const patch = {
         desc: String(inputs[0].value || '').trim(),
         qty: inputs[1].value,
         price: inputs[2].value,
-        vat: inputs[3].value,
-      });
+      };
+      if (inputs.length >= 4) patch.cost = inputs[3].value;
+      Object.assign(globalThis.POS[index], patch);
+      if (globalThis.POS[index].vat === undefined) globalThis.POS[index].vat = 19;
     });
     return globalThis.POS;
   };
@@ -58,9 +61,11 @@
 
       try {
         if (button) { button.dataset.saving = '1'; button.disabled = true; }
+        /* Zeile behalten, wenn Beschreibung ODER Preis/Menge gesetzt ist – sonst gingen bepreiste Zeilen verloren (0,00 €) */
+        const num = (v) => { const n = parseFloat(String(v ?? '').replace(',', '.')); return isNaN(n) ? 0 : n; };
         const positions = syncVisiblePositions()
-          .filter((position) => String(position?.desc || '').trim())
-          .map((position) => ({ ...position, desc: String(position.desc).trim() }));
+          .filter((position) => String(position?.desc || '').trim() || num(position?.price) || num(position?.qty) > 1)
+          .map((position) => ({ ...position, desc: String(position?.desc || '').trim() }));
 
         const documentData = {
           date: value('f_d'), serviceDate: value('f_ld'), customerId: value('f_ck'), customerName,
