@@ -780,7 +780,7 @@ function vStart(){
    ...S.docs.filter(d=>d.type==='RE'&&!d.archived&&d.status!=='bezahlt').map(d=>({d:d.date,txt:d.no+' · '+(d.customerName||''),amt:docGross(d),kind:'rechnung',id:d.id})),
    ...S.debts.filter(d=>!d.done&&d.dueDate).map(d=>({d:d.dueDate,txt:d.name,amt:d.amount,kind:d.kind,id:d.id}))].sort((a,b)=>(a.d||'').localeCompare(b.d||'')).slice(0,8);
  const stat=(lbl,val,cls,sub,ic='',tgt='')=>`<div class="card stat" ${tgt?`style="cursor:pointer" onclick="go('${tgt}')"`:''}>${ic}<div class="lbl">${lbl}</div><div class="val ${cls}">${val}</div><div class="sub">${sub||''}</div></div>`;
- return`<div class="phead"><h1>${t('uebersicht')}</h1><div class="sub">${esc(S.settings.name)} – ${monName(mIdx)} ${y}</div>${mobMods()}</div>${window.backupBanner?backupBanner():''}
+ return`<div class="phead"><h1>${t('uebersicht')}</h1><div class="sub">${esc(S.settings.name)} – ${monName(mIdx)} ${y}</div>${mobMods()}</div>${window.backupBanner?backupBanner():''}${typeof conflictBanner==='function'?conflictBanner():''}
  <div class="sechead"><h2>${t('bwa')} ${monName(mIdx)}</h2><button class="pill" onclick="go('berichte')">${t('vollBwa')}</button></div>
  <div class="grid2">
   ${stat(t('umsatzNetto'),eur(c.netIn),'c-green',t('brutto')+': '+eur(c.grossIn),`<span class="arrow c-green">↗</span>`,'einnahmen')}
@@ -2050,6 +2050,30 @@ function backupBanner(){
  const old=!last||((new Date(todayISO())-new Date(last))/86400000)>7;
  return old?`<div class="banner">💾 ${t('backupWarn')}<span class="sp"></span><button class="pill" onclick="backupJson();render()">${t('jetztSichern')}</button></div>`:'';
 }
+/* Cloud-Konflikt: Cloud hat WENIGER Einträge als dieses Gerät — nie automatisch entscheiden */
+function conflictBanner(){
+ if(!tenantConflict)return'';
+ const{rc,lc}=tenantConflict;
+ return`<div class="banner" style="background:#fef2f2;border-color:#fecaca;color:#991b1b">⚠ Cloud-Konflikt: Dieses Gerät hat ${lc} Einträge, die Cloud nur ${rc}. Automatisch NICHT überschrieben.
+  <span class="sp"></span>
+  <button class="pill" onclick="resolveConflict('keepLocal')">Dieses Gerät behalten (hochladen)</button>
+  <button class="pill" style="background:#fff" onclick="resolveConflict('useCloud')">Cloud-Version übernehmen (Achtung: kann Daten löschen)</button>
+ </div>`;
+}
+function resolveConflict(choice){
+ if(!tenantConflict)return;
+ if(choice==='keepLocal'){ tenantConflict=null; doTenantPush(); toast('✓ Hochgeladen'); }
+ else if(choice==='useCloud'){
+  if(!confirm('Wirklich die Cloud-Version laden? Alles, was nur auf diesem Gerät steht, geht dabei verloren.'))return;
+  S=tenantConflict.remote; const d=defState();
+  for(const k in d){ if(S[k]===undefined) S[k]=d[k]; }
+  for(const k in d.settings){ if(S.settings[k]===undefined) S.settings[k]=d.settings[k]; }
+  localStorage.setItem(LSK,JSON.stringify(S));
+  localStorage.setItem('ab_pull',tenantConflict.updated_at);
+  tenantConflict=null;
+ }
+ render();
+}
 /* Arama odak koruması */
 function sRender(id){render();const e=document.getElementById(id);if(e){e.focus();const v=e.value;try{e.setSelectionRange(v.length,v.length);}catch(x){}}}
 
@@ -2491,6 +2515,8 @@ async function cloudPull(silent){
    const remote=rows[0];const rt=remote.updated_at||'';
    const localT=localStorage.getItem('nb_cloud_last')||'';
    if(rt>localT&&remote.data&&remote.data.settings){
+    const rc=countOf(remote.data),lc=countOf(S);
+    if(rc<lc){ if(!silent)alert('⚠ Cloud hat weniger Einträge ('+rc+') als dieses Gerät ('+lc+'). Nicht automatisch überschrieben — bitte manuell prüfen.'); cloudState.status='ok';renderCloudBadge(); return; }
     S=remote.data;const d=defState();for(const k in d){if(S[k]===undefined)S[k]=d[k];}for(const k in d.settings){if(S.settings[k]===undefined)S.settings[k]=d.settings[k];}
     localStorage.setItem(LSK,JSON.stringify(S));localStorage.setItem('nb_cloud_last',rt);cloudState.last=rt;
     if(!silent){toast(t('verbunden'));render();}else render();
@@ -5172,7 +5198,7 @@ try{
    Aktiv nur, wenn config.js vorhanden ist. Sonst bleibt alles wie bisher.
    ============================================================ */
 const CFG = window.AUTOBURO_CONFIG || null;
-let ACC = null, NEEDS_SETUP=false;   /* {token, refresh, email, uid, tenantId} */
+let ACC = null, NEEDS_SETUP=false, tenantConflict=null;   /* {token, refresh, email, uid, tenantId} */
 try{ ACC = JSON.parse(localStorage.getItem('ab_acc')); }catch(e){}
 
 function accSave(){ ACC ? localStorage.setItem('ab_acc',JSON.stringify(ACC)) : localStorage.removeItem('ab_acc'); }
@@ -5362,6 +5388,7 @@ function startTenantPolling(){
    if(!(remote.updated_at>localT)) return;
    const rc=countOf(remote.data), lc=countOf(S);
    if(lc>0&&rc===0) return; /* Cloud leer, Gerät voll → nie überschreiben */
+   if(rc<lc){ tenantConflict={remote:remote.data,rc,lc,updated_at:remote.updated_at}; renderCloudBadge(); return; } /* Cloud hat WENIGER Einträge als dieses Gerät → nie automatisch überschreiben, Nutzer entscheidet */
    S=remote.data; const d=defState();
    for(const k in d){ if(S[k]===undefined) S[k]=d[k]; }
    for(const k in d.settings){ if(S.settings[k]===undefined) S.settings[k]=d.settings[k]; }
