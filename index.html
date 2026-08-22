@@ -2048,7 +2048,8 @@ function backupBanner(){
  if(ROLE()!=='chef')return'';
  const last=localStorage.getItem('nb_lastbackup');
  const old=!last||((new Date(todayISO())-new Date(last))/86400000)>7;
- return old?`<div class="banner">💾 ${t('backupWarn')}<span class="sp"></span><button class="pill" onclick="backupJson();render()">${t('jetztSichern')}</button></div>`:'';
+ return old?`<div class="banner">💾 ${t('backupWarn')}<span class="sp"></span><button class="pill" onclick="backupJson();render()">${t('jetztSichern')}</button><button class="pill" onclick="abRestoreList()">↺ Wiederherstellungspunkte</button></div>`
+  :`<div class="banner" style="background:#f8fafc;border-color:#e2e8f0;color:#475569">💾 Datensicherung<span class="sp"></span><button class="pill" onclick="backupJson();render()">${t('jetztSichern')}</button><button class="pill" onclick="abRestoreList()">↺ Wiederherstellungspunkte</button></div>`;
 }
 /* Cloud-Konflikt: Cloud hat WENIGER Einträge als dieses Gerät — nie automatisch entscheiden */
 function conflictBanner(){
@@ -7432,6 +7433,79 @@ window.vStundenprofit=vStundenprofit;
     try{ if(_origWa) await _origWa(); }
     finally{ setTimeout(function(){_pdfBusy=false;},1200); }
   };
+})();
+</script>
+
+<!-- ============ LOKALE WIEDERHERSTELLUNGSPUNKTE (kostenlos, ohne Cloud) ============ -->
+<script>
+(() => {
+  'use strict';
+  if (globalThis.__AB_SNAPSHOTS__) return;
+  globalThis.__AB_SNAPSHOTS__ = true;
+
+  const KEY = 'nb_snaps';
+  const MAX_SNAPS = 10;
+  const MAX_BYTES = 2_500_000; /* Fotos können groß sein – dann lieber kein Snapshot als Speicher voll */
+
+  const readSnaps = () => { try { return JSON.parse(localStorage.getItem(KEY)) || []; } catch { return []; } };
+  const writeSnaps = (arr) => { try { localStorage.setItem(KEY, JSON.stringify(arr)); return true; } catch { return false; } };
+
+  const countDocs = (st) => (st && Array.isArray(st.docs)) ? st.docs.length : 0;
+
+  /* Einen Wiederherstellungspunkt pro Tag – und immer vor riskanten Änderungen */
+  globalThis.abSnapshot = function abSnapshot(tag) {
+    try {
+      if (typeof S === 'undefined' || !S || !Array.isArray(S.docs)) return;
+      const json = JSON.stringify(S);
+      if (json.length > MAX_BYTES) return; /* zu groß – überspringen statt Speicher sprengen */
+      const today = new Date().toISOString().slice(0, 10);
+      const snaps = readSnaps();
+      const existingToday = snaps.findIndex(s => s.day === today && s.tag === (tag || 'auto'));
+      const entry = { day: today, at: new Date().toISOString(), tag: tag || 'auto', docs: countDocs(S), data: json };
+      if (existingToday >= 0) {
+        /* Nur ersetzen, wenn der neue Stand nicht WENIGER Dokumente hat */
+        if (countDocs(S) >= (snaps[existingToday].docs || 0)) snaps[existingToday] = entry;
+      } else {
+        snaps.push(entry);
+      }
+      snaps.sort((a, b) => (a.at < b.at ? 1 : -1));
+      while (snaps.length > MAX_SNAPS) snaps.pop();
+      writeSnaps(snaps);
+    } catch (e) { console.warn('Snapshot:', e); }
+  };
+
+  globalThis.abRestoreList = function abRestoreList() {
+    const snaps = readSnaps();
+    if (!snaps.length) { alert('Noch keine Wiederherstellungspunkte vorhanden.'); return; }
+    const lines = snaps.map((s, i) =>
+      `${i + 1}) ${new Date(s.at).toLocaleString('de-DE')} — ${s.docs} Dokumente${s.tag !== 'auto' ? ' (' + s.tag + ')' : ''}`
+    ).join('\n');
+    const pick = prompt('Wiederherstellungspunkt wählen (Nummer eingeben):\n\n' + lines + '\n\nAktuell: ' + countDocs(S) + ' Dokumente');
+    if (!pick) return;
+    const idx = parseInt(pick, 10) - 1;
+    if (isNaN(idx) || !snaps[idx]) return;
+    const snap = snaps[idx];
+    if (!confirm(`Stand vom ${new Date(snap.at).toLocaleString('de-DE')} mit ${snap.docs} Dokumenten laden?\n\nDer aktuelle Stand (${countDocs(S)} Dokumente) wird vorher als Wiederherstellungspunkt gesichert.`)) return;
+    try {
+      abSnapshot('vor-Wiederherstellung');
+      const restored = JSON.parse(snap.data);
+      if (!restored || !Array.isArray(restored.docs)) throw new Error('Snapshot ungültig');
+      globalThis.S = restored;
+      if (typeof defState === 'function') {
+        const d = defState();
+        for (const k in d) if (S[k] === undefined) S[k] = d[k];
+        for (const k in d.settings) if (S.settings[k] === undefined) S.settings[k] = d.settings[k];
+      }
+      localStorage.setItem(typeof LSK !== 'undefined' ? LSK : 'nb_state', JSON.stringify(S));
+      alert('✓ Wiederhergestellt: ' + countDocs(S) + ' Dokumente.');
+      if (typeof render === 'function') render();
+    } catch (e) { alert('Wiederherstellung fehlgeschlagen: ' + (e.message || e)); }
+  };
+
+  /* Beim Start und danach stündlich einen Punkt setzen */
+  const boot = () => { abSnapshot('auto'); setInterval(() => abSnapshot('auto'), 3600000); };
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', () => setTimeout(boot, 4000), { once: true });
+  else setTimeout(boot, 4000);
 })();
 </script>
 </body>
